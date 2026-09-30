@@ -55,3 +55,9 @@ gate, update the README Status and the tags in its configuration, tag the verifi
 create a GitHub pre-release. Then, in a fresh Moonwell map with both libraries from GitHub (the README configuration)
 and `examples/gate.yue` as `src/main.yue`: check, build and build `--minify`; `moonwell.lock` must record both tags'
 commits; remove the map's `.moonwell/`, check again, and the lock must stay unchanged. Record it here.
+
+v0.1.0: passed 2026-09-30 with Moonwell 0.5.2 (`main`) and moonwell-wrappers `v0.7.0`, in a map made fresh with
+`init --link`: check, normal and minified builds of the gate example; `moonwell.lock` recorded systems commit
+`172543665e299943076feb647f86e1308d728aa0` and wrappers commit `e9c2880993fd8b0755da8d2d442654cea467c913`, the 6
+fetched systems files matched the tag's `src/` byte for byte, and the lock stayed unchanged after removing the map's
+`.moonwell/` and checking again.
