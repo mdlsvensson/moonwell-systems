@@ -1,2 +1,2 @@
 -- Every behavior suite, in run order. tools/check.lua fails when a suite file is missing here.
-return {'internal', 'scheduler', 'signal'}
+return {'internal', 'scheduler', 'signal', 'scope'}
