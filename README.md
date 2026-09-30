@@ -5,9 +5,9 @@ deterministic scheduler, signals, ownership scopes and time helpers today; dummi
 codes in later releases. Annotated Lua 5.3, built on [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers),
 with editor completion for YueScript and Lua maps.
 
-**Status:** `v0.1.0` (unreleased): `systems.scheduler`, `systems.signal`, `systems.scope` and `systems.time`. It needs
+**Status:** `v0.1.0` (2026-09-30): `systems.scheduler`, `systems.signal`, `systems.scope` and `systems.time`. It needs
 moonwell-wrappers `v0.7.0` or later and Moonwell 0.5.2 or later. Multiplayer desync checks are deferred until before
-Moonwell 1.0.
+Moonwell 1.0. Its in-game gate passed on 3.0.0.24268.
 
 ## Use it
 

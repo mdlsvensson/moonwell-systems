@@ -43,6 +43,11 @@ v0.1.0: in `../wrappers-gate` (whose `moonwell.local.pkl` lists both libraries a
 6. At 5 s: `Systems gate done: tick at dispose <t> tick now <t> failures 1`, with the two ticks equal, and no systems
    line after it.
 
+v0.1.0: passed 2026-09-30, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build). Every message
+printed as listed: the reference timer read 0.5000038, 1.000004, 1.500004 and 2.000004 s for the four half-second
+runs; the failing task printed once (`war3map.lua:1822`); the footman disappeared at 3 s; the tick stayed at 128 after
+dispose; the local UTC time was correct.
+
 ## Publication and tag gate (maintainer)
 
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the
