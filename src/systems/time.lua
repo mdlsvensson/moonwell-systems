@@ -16,6 +16,11 @@ local function integer(value, low, high)
     return math.type(value) ~= nil and value >= low and value <= high and math.floor(value) == value
 end
 
+---The value as an integer; the caller has checked it with integer().
+---@param value number
+---@return integer
+local function whole(value) return math.tointeger(value) --[[@as integer]] end
+
 ---Whether `year` (1..9999) is a Gregorian leap year.
 ---@param year integer
 ---@return boolean
@@ -42,12 +47,12 @@ function Time.utcToUnix(date)
     local year, month, day = date.year, date.month, date.day
     local hour, minute, second = date.hour or 0, date.minute or 0, date.second or 0
     if not (integer(year, 1, 9999) and integer(month, 1, 12)) then return nil end
-    year, month = math.tointeger(year), math.tointeger(month)
+    year, month = whole(year), whole(month)
     if not (integer(day, 1, daysInMonth(year, month)) and integer(hour, 0, 23) and integer(minute, 0, 59)
         and integer(second, 0, 59)) then
         return nil
     end
-    day, hour, minute, second = math.tointeger(day), math.tointeger(hour), math.tointeger(minute), math.tointeger(second)
+    day, hour, minute, second = whole(day), whole(hour), whole(minute), whole(second)
     local days = daysBeforeYear(year) - 719162 + day - 1
     for earlier = 1, month - 1 do days = days + daysInMonth(year, earlier) end
     local rest = hour * 3600 + minute * 60 + second
@@ -64,7 +69,7 @@ end
 ---@return MoonwellSystems.UtcDate? date Nil for a non-integer or a value outside the range.
 function Time.unixToUtc(seconds)
     if not integer(seconds, MIN, MAX) then return nil end
-    seconds = math.tointeger(seconds)
+    seconds = whole(seconds)
     local day, rest = seconds // 86400, seconds % 86400
     local absoluteDay = day + 719162
     local low, high = 1, 10000
@@ -88,7 +93,7 @@ end
 ---@return integer? weekday Nil for a value unixToUtc rejects.
 function Time.dayOfWeek(seconds)
     if not integer(seconds, MIN, MAX) then return nil end
-    return (math.tointeger(seconds) // 86400 + 4) % 7
+    return (whole(seconds) // 86400 + 4) % 7
 end
 
 ---"YYYY-MM-DD HH:MM:SS".
@@ -126,7 +131,7 @@ function Time.localUtc()
     local clock = os.time
     if type(clock) ~= 'function' then return nil end
     local ok, seconds = pcall(clock)
-    if ok and integer(seconds, MIN, MAX) then return math.tointeger(seconds) end
+    if ok and integer(seconds, MIN, MAX) then return whole(seconds) end
     return nil
 end
 

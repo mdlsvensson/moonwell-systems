@@ -144,6 +144,7 @@ function Scheduler:advance()
         local task = heap[1]
         if not task or task.due > scheduler.tick then break end
         local callback = task.callback
+        ---@cast callback -nil
         if task.interval == 0 then
             remove(heap, task)
         else

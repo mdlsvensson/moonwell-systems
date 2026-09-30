@@ -1,0 +1,15 @@
+import "moonwell" as mw
+import "systems.scheduler" as Scheduler
+import "systems.signal" as Signal
+import "systems.scope" as Scope
+import "systems.time" as Time
+
+mw.on_main ->
+  scope = Scope.new!
+  clock = scope\add Scheduler.new!
+  scope\own clock\start!
+  clock\every 1, -> print clock\getElapsed!
+  changed = scope\add Signal.new!
+  changed\subscribe (value) -> print value
+  changed\emit 1
+  print Time.formatDuration 65
