@@ -1,0 +1,68 @@
+-- The moonwell-systems in-game gate. Built by the gate map's `systems` run (../wrappers-gate, deno task gate systems);
+-- CONTRIBUTING lists every expected message. It starts just after the map loads.
+import "moonwell" as mw
+import "moonwell.macros" as {:$FourCC}
+import "wrappers.player" as Player
+import "wrappers.unit" as Unit
+import "wrappers.timer" as Timer
+import "systems.scheduler" as Scheduler
+import "systems.signal" as Signal
+import "systems.scope" as Scope
+import "systems.time" as Time
+
+systemsGate = (owner) ->
+  clock = Scheduler.new!
+  clock\start!
+  reference = Timer.create!
+  reference\start 60, false, -> print "Systems reference timer expired"
+  clock\after 1, ->
+    print "Systems after 1 s: reference", reference\getElapsed!, "elapsed", clock\getElapsed!
+  halves = 0
+  stopHalves = clock\every 0.5, ->
+    halves += 1
+    print "Systems every 0.5 s: run", halves, "reference", reference\getElapsed!
+  clock\after 2.1, -> stopHalves!
+  order = {}
+  for name in *{"first", "second", "third"}
+    clock\after 0.25, -> table.insert order, name
+  clock\after 0.3, -> print "Systems same-tick order:", table.concat order, " "
+  failures = 0
+  clock\every 0.5, ->
+    failures += 1
+    error "intentional systems probe #{failures}"
+  signal = Signal.new!
+  seen = {}
+  signal\subscribe ((value) -> table.insert seen, "five:#{value}"), 5
+  signal\subscribe ((value) -> table.insert seen, "low:#{value}"), -1
+  signal\subscribe (-> error "intentional signal probe"), 0
+  signal\emit 7
+  print "Systems signal order:", table.concat seen, " "
+  scope = Scope.new!
+  footman = scope\add Unit.create owner, $FourCC("hfoo"), 0, 0, 270
+  held = scope\add Timer.create!
+  scope\own -> print "Systems scope release function ran first"
+  clock\after 3, ->
+    scope\dispose!
+    print "Systems scope disposed: timer disposed", held\isDisposed!, "unit disposed", footman\isDisposed!
+  now = Time.localUtc!
+  if now
+    date = Time.unixToUtc now
+    print "Systems local UTC", now, date and Time.formatUtc(date) or "out of range", "weekday", Time.dayOfWeek now
+  else
+    print "Systems local UTC unavailable"
+  print "Systems duration 3725 s", Time.formatDuration 3725
+  clock\after 4, ->
+    tick = clock\getTick!
+    clock\dispose!
+    later = Timer.create!
+    later\start 1, false, (self) ->
+      self\destroy!
+      reference\destroy!
+      print "Systems gate done: tick at dispose", tick, "tick now", clock\getTick!, "failures", failures
+  print "Systems gate started"
+
+mw.on_main ->
+  start = Timer.create!
+  start\start 0, false, (self) ->
+    self\destroy!
+    systemsGate Player.fromIndex 0
