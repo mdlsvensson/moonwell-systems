@@ -100,3 +100,37 @@ test('arguments are checked at the caller', function()
     failsAt(function() Scheduler.after({}, 1, print) end, 'Scheduler.after: expected Scheduler')
     eq(clock:getPending(), 0)
 end)
+
+test('start drives advance from one periodic timer; stop and dispose destroy it', function()
+    local timers = {}
+    native('CreateTimer', function()
+        local timer = {}
+        timers[#timers + 1] = timer
+        return timer
+    end)
+    native('TimerStart', function(timer, timeout, periodic, fn)
+        timer.timeout, timer.periodic, timer.fn = timeout, periodic, fn
+    end)
+    native('PauseTimer', function() end)
+    native('DestroyTimer', function(timer) timer.destroyed = true end)
+    local clock = Scheduler.new(0.5)
+    local runs = 0
+    clock:every(0.5, function() runs = runs + 1 end)
+    local stop = clock:start()
+    eq(#timers, 1); eq(timers[1].timeout, 0.5); eq(timers[1].periodic, true)
+    failsAt(function() clock:start() end, 'Scheduler.start: already started')
+    timers[1].fn(); timers[1].fn()
+    eq(clock:getTick(), 2); eq(runs, 2)
+    stop(); stop()
+    eq(timers[1].destroyed, true); eq(callCount('DestroyTimer'), 1)
+    local stopAgain = clock:start()
+    eq(#timers, 2)
+    stop()
+    eq(timers[2].destroyed, nil)
+    clock:dispose()
+    eq(timers[2].destroyed, true)
+    stopAgain()
+    eq(callCount('DestroyTimer'), 2)
+    failsAt(function() clock:start() end, 'Scheduler.start: the scheduler is disposed')
+    failsAt(function() Scheduler.start({}) end, 'Scheduler.start: expected Scheduler')
+end)

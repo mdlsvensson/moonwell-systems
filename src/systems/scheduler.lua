@@ -1,5 +1,6 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Timer = require('wrappers.timer')
 
 ---A deterministic fixed-step clock. Delays round up to whole ticks (at least one), and tasks due on the same tick run
 ---in creation order. Pure: drive it with `advance()`, or with `start()` in a map.
@@ -177,13 +178,33 @@ function Scheduler:ticks(seconds)
     return toTicks(scheduler.step, seconds)
 end
 
----Cancels every task. Scheduling afterwards raises; advancing does nothing. Idempotent.
+---Destroys `timer` if it is still the scheduler's; a stale stop function does nothing.
+local function stopTimer(scheduler, timer)
+    if scheduler.timer ~= timer then return end
+    scheduler.timer = nil
+    timer:destroy()
+end
+
+---Drives `advance()` from one periodic wrappers Timer with this scheduler's step. Importing the module creates nothing.
+---@return fun() stop Destroys the timer; idempotent.
+function Scheduler:start()
+    local scheduler = Check.receiver(self, Scheduler, 'Scheduler', 'Scheduler.start')
+    if scheduler.disposed then error('[systems] Scheduler.start: the scheduler is disposed', 2) end
+    if scheduler.timer then error('[systems] Scheduler.start: already started', 2) end
+    local timer = Timer.create()
+    scheduler.timer = timer
+    timer:start(scheduler.step, true, function() scheduler:advance() end)
+    return function() stopTimer(scheduler, timer) end
+end
+
+---Cancels every task and stops the timer. Scheduling afterwards raises; advancing does nothing. Idempotent.
 function Scheduler:dispose()
     local scheduler = Check.receiver(self, Scheduler, 'Scheduler', 'Scheduler.dispose')
     if scheduler.disposed then return end
     scheduler.disposed = true
     for _, task in ipairs(scheduler.heap) do task.callback = nil; task.index = 0 end
     scheduler.heap = {}
+    if scheduler.timer then stopTimer(scheduler, scheduler.timer) end
 end
 
 return Scheduler
