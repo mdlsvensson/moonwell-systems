@@ -30,6 +30,17 @@ test('a failing onError is printed with the failure', function()
     eq(PRINTED[2], '[systems] Probe failed: task broke')
 end)
 
+test('report sends a message to onError, or prints it', function()
+    local messages = {}
+    Callback.report('Probe', function(message) messages[#messages + 1] = message end, 'first')
+    eq(#messages, 1); eq(messages[1], 'first'); eq(#PRINTED, 0)
+    Callback.report('Probe', nil, 'second')
+    eq(#PRINTED, 1); eq(PRINTED[1], '[systems] Probe failed: second')
+    Callback.report('Probe', function() error('handler broke', 0) end, 'third')
+    eq(PRINTED[2], '[systems] Probe error handler failed: handler broke')
+    eq(PRINTED[3], '[systems] Probe failed: third')
+end)
+
 test('an unprintable error is still reported', function()
     local weird = setmetatable({}, {__tostring = function() error('no') end})
     Callback.call('Probe', nil, error, weird)

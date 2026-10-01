@@ -29,8 +29,22 @@ local function text(message)
     return printable and result or '<unprintable error>'
 end
 
----Runs `fn(...)` behind the boundary. A failure goes to `onError(message)`, itself behind the boundary, or is printed
----as `[systems] <label> failed: <message>`.
+---Reports a failure: to `onError(message)`, itself behind the boundary, or printed as
+---`[systems] <label> failed: <message>`.
+---@param label string
+---@param onError (fun(message: string): ...)?
+---@param message unknown
+function Callback.report(label, onError, message)
+    local reported = text(message)
+    if onError then
+        local handled, failure = pcall(onError, reported)
+        if handled then return end
+        print('[systems] ' .. label .. ' error handler failed: ' .. text(failure))
+    end
+    print('[systems] ' .. label .. ' failed: ' .. reported)
+end
+
+---Runs `fn(...)` behind the boundary and reports a failure (see report).
 ---@param label string
 ---@param onError (fun(message: string): ...)?
 ---@param fn function
@@ -39,13 +53,7 @@ end
 function Callback.call(label, onError, fn, ...)
     local ok, message = pcall(fn, ...)
     if ok then return true end
-    local reported = text(message)
-    if onError then
-        local handled, failure = pcall(onError, reported)
-        if handled then return false end
-        print('[systems] ' .. label .. ' error handler failed: ' .. text(failure))
-    end
-    print('[systems] ' .. label .. ' failed: ' .. reported)
+    Callback.report(label, onError, message)
     return false
 end
 
