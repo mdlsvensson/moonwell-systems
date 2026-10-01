@@ -15,4 +15,12 @@ local Dummies = require('systems.dummy')
 BuffStore.new(clock):apply(clock, {id = 'x', kind = 'active'}) -- EXPECT param-type-mismatch
 Dummies.new(5) -- EXPECT param-type-mismatch
 Dummies.new(clock):nonexistent() -- EXPECT undefined-field
+local DamageSystem = require('systems.damage')
+local damage = DamageSystem.new()
+damage:beforeArmor('x') -- EXPECT param-type-mismatch
+damage:nonexistent() -- EXPECT undefined-field
+damage:observe(function(hit) hit:setAmount('1') end) -- EXPECT param-type-mismatch
+local current = damage:getCurrent()
+print(current.amount) -- EXPECT need-check-nil
+DamageSystem.new({maxQueue = 'many'}) -- EXPECT assign-type-mismatch
 return true

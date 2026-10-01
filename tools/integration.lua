@@ -75,7 +75,7 @@ local planted = Lib.expectMarked('tests/natives-negative.lua', Lib.diagnose(lual
 print("LuaLS: src/systems is clean against Moonwell's natives; " .. planted .. ' planted mistakes detected')
 
 -- A map importing one entry point bundles only that module, what it requires, and the wrappers it names.
-local public = {'scheduler', 'signal', 'scope', 'time', 'buffs', 'aura', 'dummy'}
+local public = {'scheduler', 'signal', 'scope', 'time', 'buffs', 'aura', 'dummy', 'damage'}
 local wrappersPublic = {'unit', 'player', 'item', 'destructable', 'rect', 'region', 'force', 'group', 'timer', 'effect',
     'trigger', 'texttag', 'sound', 'lightning', 'image', 'ubersplat', 'fogmodifier', 'dialog', 'multiboard',
     'leaderboard', 'quest', 'defeatcondition', 'timerdialog', 'frame', 'damage', 'sync'}
@@ -94,6 +94,8 @@ local entries = {
         wrappers = unitFamily},
     dummy = {source = 'import "systems.dummy" as Dummies\nimport "systems.scheduler" as Scheduler\n'
         .. 'd = Dummies.new Scheduler.new!\nd\\dispose!\n', systems = {scheduler = true}, wrappers = unitFamily},
+    damage = {source = 'import "systems.damage" as DamageSystem\nd = DamageSystem.new!\nd\\dispose!\n', systems = {},
+        wrappers = {unit = true, player = true, item = true, timer = true, damage = true}},
 }
 -- A module name followed by a closing quote, so wrappers.timer does not match wrappers.timerdialog.
 local function bundles(bundle, name)
@@ -119,15 +121,13 @@ for _, entry in ipairs(public) do
 end
 print('Moonwell: every entry point (' .. #public .. ') bundles only what it imports')
 
--- The gate example builds and has clean editor diagnostics.
-local gate = io.open('examples/gate.yue', 'rb')
-if gate then
-    gate:close()
-    Lib.copy('examples/gate.yue', consumer .. '/src/main.yue')
-    Lib.remove(consumer .. '/lua/positive.lua')
+-- The gate examples build and have clean editor diagnostics.
+Lib.remove(consumer .. '/lua/positive.lua')
+for _, name in ipairs({'gate', 'gate-damage'}) do
+    Lib.copy('examples/' .. name .. '.yue', consumer .. '/src/main.yue')
     moonwell('check'); moonwell('build --minify')
     compileEditor()
-    clean(Lib.diagnose(luals, consumer, 'gate'), 'Gate example')
-    print('Gate example: builds and editor diagnostics are clean; game execution remains manual')
+    clean(Lib.diagnose(luals, consumer, name), 'Gate example ' .. name)
 end
+print('Gate examples: both build and their editor diagnostics are clean; game execution remains manual')
 print('Integration passed')

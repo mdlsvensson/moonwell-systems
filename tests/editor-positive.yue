@@ -3,6 +3,8 @@ import "systems.scheduler" as Scheduler
 import "systems.signal" as Signal
 import "systems.scope" as Scope
 import "systems.time" as Time
+import "systems.dummy" as Dummies
+import "systems.damage" as DamageSystem
 
 mw.on_main ->
   scope = Scope.new!
@@ -13,3 +15,9 @@ mw.on_main ->
   changed\subscribe (value) -> print value
   changed\emit 1
   print Time.formatDuration 65
+  dummies = scope\add Dummies.new clock
+  damage = scope\add DamageSystem.new sourceOf: dummies\sourceOf
+  damage\start!
+  damage\beforeArmor (hit) -> hit\setAmount hit.amount * 2
+  damage\afterArmor ((hit) -> hit\cancel! if hit\isLethal!), 5
+  damage\observe (hit) -> print hit.amount, hit.metadata
