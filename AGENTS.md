@@ -3,8 +3,8 @@
 This is an optional Moonwell library in annotated Lua 5.3: `wc3-lib`'s systems, ported for Warcraft's Lua and built on
 moonwell-wrappers. Runtime modules live only in `src/systems/`; maps consume it with `dir = "src"` next to the wrappers.
 The remote is `mdlsvensson/moonwell-systems` (HTTPS). Tags are immutable GitHub pre-releases: `v0.1.0` is on
-`1725436` (in-game gate and tag consumption passed 2026-09-30), `v0.2.0` on `afabc3d`, `v0.3.0` on `d67d3fc` and
-`v0.4.0` on `cfa21b6` (all three passed 2026-10-01).
+`1725436` (in-game gate and tag consumption passed 2026-09-30), `v0.2.0` on `afabc3d`, `v0.3.0` on `d67d3fc`,
+`v0.4.0` on `cfa21b6` and `v0.5.0` on `11331a8` (all four passed 2026-10-01). The port of `wc3-lib` is complete.
 
 The design lives in the sibling Moonwell repository: `../moonwell/docs/superpowers/specs/2026-09-30-moonwell-systems-design.md`
 (Part 1 binds every release; each release has its own spec and plan in `../moonwell/docs/superpowers/`). Release 1
