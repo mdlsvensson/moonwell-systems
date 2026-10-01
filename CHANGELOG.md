@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+Release 2 of the wc3-lib port (spec `2026-09-30-moonwell-systems-release-2-design` in the Moonwell repository).
+
+- `systems.buffs`: script buffs on Units with refresh, replace, stack and independent stacking, expiry, periodic ticks
+  and owned effects released exactly once. The store polls its units and clears removed and dead ones.
+- `systems.aura`: keeps an aura buff on the Units a query returns; each emitter owns its instances.
+- `systems.dummy`: fresh dummy casters with timed removal and caster attribution (`sourceOf`). The README has the
+  object-data definition of the dummy unit type.
+- `systems.internal.ordered`: the insertion-ordered map behind every unit-keyed collection.
+- Callback parameters are typed `fun(...): ...`, so YueScript callbacks, which return their last expression, pass the
+  editor's checks.
+
 ## 0.1.0 (2026-09-30)
 
 Release 1 of the wc3-lib port (spec `2026-09-30-moonwell-systems-design` in the Moonwell repository).

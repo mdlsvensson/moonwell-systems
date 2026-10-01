@@ -9,6 +9,86 @@ import "systems.scheduler" as Scheduler
 import "systems.signal" as Signal
 import "systems.scope" as Scope
 import "systems.time" as Time
+import "systems.buffs" as BuffStore
+import "systems.aura" as Aura
+import "systems.dummy" as Dummies
+
+-- Release 2: dummies, buffs, pruning and an aura. It runs after release 1's part; CONTRIBUTING lists every message.
+-- The dummy type e000 comes from the map's object data (README, "The dummy unit type").
+releaseTwoGate = (owner) ->
+  clock = Scheduler.new!
+  clock\start!
+  hostile = Player.fromIndex 12
+  hero = Unit.create owner, $FourCC("Hpal"), -300, 0, 0
+  bolted = Unit.create hostile, $FourCC("hfoo"), 0, 250, 270
+  bolted\pause true
+  dummies = Dummies.new clock
+  lease = dummies\cast
+    owner: owner, typeId: $FourCC("e000"), x: -300, y: 0, ability: $FourCC("AHtb"), order: "thunderbolt"
+    target: bolted, duration: 2, source: hero
+  dummy = lease\getUnit!
+  print "Systems dummy cast accepted", lease\isOrderAccepted!, "isDummy", dummies\isDummy(dummy), "source is hero",
+    dummies\sourceOf(dummy) == hero, "count", dummies\getCount!
+  boltedLife = bolted\getLife!
+  clock\after 2.5, ->
+    print "Systems dummy gone: count", dummies\getCount!, "active", lease\isActive!, "life lost",
+      boltedLife - bolted\getLife!
+  buffs = BuffStore.new clock
+  slowed = Unit.create owner, $FourCC("hfoo"), 200, -250, 90
+  baseSpeed = slowed\getMoveSpeed!
+  slow =
+    id: "gate-slow"
+    kind: "active"
+    stacking: "stack"
+    maxStacks: 3
+    duration: 3
+    interval: 1
+    onApply: (buff) ->
+      target = buff\getUnit!
+      target\setVertexColor 80, 80, 255, 255
+      target\setMoveSpeed baseSpeed * 0.5
+      buff\own ->
+        target\setVertexColor 255, 255, 255, 255
+        target\setMoveSpeed baseSpeed
+    onStacks: (buff, previous) -> print "Systems buff stacks", previous, "->", buff\getStacks!
+    onTick: (buff) -> print "Systems buff tick: stacks", buff\getStacks!, "remaining", buff\getRemaining!
+    onRemove: (buff, reason) ->
+      print "Systems buff removed:", reason, "speed restored", buff\getUnit!\getMoveSpeed! == baseSpeed
+  clock\after 3, -> buffs\apply slowed, slow
+  clock\after 3.5, -> buffs\apply slowed, slow
+  doomed = Unit.create hostile, $FourCC("hfoo"), 300, 350, 0
+  vanished = Unit.create hostile, $FourCC("hfoo"), 400, 350, 0
+  marked = (name) ->
+    {id: "gate-mark-#{name}", kind: "active", onRemove: (_, reason) -> print "Systems buff pruned:", name, reason}
+  talent =
+    id: "gate-talent"
+    kind: "passive"
+    onRemove: (_, reason) -> print "Systems passive buff removed:", reason
+  clock\after 7, ->
+    buffs\apply doomed, marked "killed"
+    buffs\apply doomed, talent
+    buffs\apply vanished, marked "removed"
+    doomed\kill!
+    RemoveUnit vanished\getHandle!
+  walker = Unit.create owner, $FourCC("hfoo"), 900, 0, 180
+  devotion =
+    id: "gate-aura"
+    kind: "aura"
+    onApply: (buff) -> print "Systems aura applied to walker", buff\getUnit! == walker
+    onRemove: (_, reason) -> print "Systems aura removed:", reason
+  aura = Aura.new buffs, devotion, hero, ->
+    dx, dy = walker\getX! - hero\getX!, walker\getY! - hero\getY!
+    if dx * dx + dy * dy <= 400 * 400 then {walker} else {}
+  clock\after 8, -> aura\start 0.5
+  clock\after 9, -> walker\setPosition -250, 0
+  clock\after 11, -> walker\setPosition 900, 0
+  clock\after 12.5, ->
+    aura\dispose!
+    buffs\dispose!
+    dummies\dispose!
+    clock\dispose!
+    print "Systems release 2 done"
+  print "Systems release 2 started"
 
 systemsGate = (owner) ->
   clock = Scheduler.new!
@@ -59,6 +139,7 @@ systemsGate = (owner) ->
       self\destroy!
       reference\destroy!
       print "Systems gate done: tick at dispose", tick, "tick now", clock\getTick!, "failures", failures
+      releaseTwoGate owner
   print "Systems gate started"
 
 mw.on_main ->

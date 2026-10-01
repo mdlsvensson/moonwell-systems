@@ -28,8 +28,9 @@ Moonwell's native declarations, checks that each entry point bundles only what i
 
 ## In-game release gate (maintainer)
 
-v0.1.0: in `../wrappers-gate` (whose `moonwell.local.pkl` lists both libraries as local paths), run
-`deno task gate systems`. The gate starts just after the map loads. Expected messages (F12 log):
+In `../wrappers-gate` (whose `moonwell.local.pkl` lists both libraries as local paths, and whose `objects/units.pkl`
+has the README's dummy unit type), run `deno task gate systems`. The gate starts just after the map loads and takes
+about 18 seconds. Expected messages (F12 log), release 1 first:
 
 1. `Systems signal order: low:7 five:7` after one `[systems] Signal listener failed: …intentional signal probe`;
    `Systems local UTC <seconds> <date> weekday <d>` (record it; the date is today's UTC); `Systems duration 3725 s
@@ -40,8 +41,24 @@ v0.1.0: in `../wrappers-gate` (whose `moonwell.local.pkl` lists both libraries a
    reference <~1.0> elapsed 1.0`.
 5. At 3 s: `Systems scope release function ran first`, then `Systems scope disposed: timer disposed true unit disposed
    true`, and the footman at the centre disappears.
-6. At 5 s: `Systems gate done: tick at dispose <t> tick now <t> failures 1`, with the two ticks equal, and no systems
-   line after it.
+6. At 5 s: `Systems gate done: tick at dispose <t> tick now <t> failures 1`, with the two ticks equal.
+
+Release 2 (v0.2.0) starts right after step 6; its times count from `Systems release 2 started`. A paladin stands on
+the left, with footmen above, below and to the upper right, and one far to the right:
+
+7. `Systems dummy cast accepted true isDummy true source is hero true count 1`, then `Systems release 2 started`. The
+   footman above the paladin is hit by a Storm Bolt (stunned and damaged). No dummy model is visible where the bolt
+   starts.
+8. At 2.5 s: `Systems dummy gone: count 0 active false life lost <n>`, with n above 0 (record it).
+9. From 3 s the footman below turns blue and is slowed; at 3.5 s `Systems buff stacks 1 -> 2`; then
+   `Systems buff tick: stacks 2 remaining <s>` once a second; at 6.5 s
+   `Systems buff removed: expired speed restored true`, and the footman's colour returns.
+10. At 7 s, within a quarter second: `Systems buff pruned: killed death` (that footman dies) and
+    `Systems buff pruned: removed removed` (that footman vanishes). No `Systems passive buff removed` line yet.
+11. At 9 s the far footman jumps next to the paladin and `Systems aura applied to walker true` prints within half a
+    second; at 11 s it jumps back and `Systems aura removed: source-lost` prints.
+12. At 12.5 s: `Systems passive buff removed: disposed`, then `Systems release 2 done`. No `[systems] … failed` line
+    prints in release 2.
 
 v0.1.0: passed 2026-09-30, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build). Every message
 printed as listed: the reference timer read 0.5000038, 1.000004, 1.500004 and 2.000004 s for the four half-second

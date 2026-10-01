@@ -7,7 +7,8 @@ The remote is `mdlsvensson/moonwell-systems` (HTTPS). Tags are immutable GitHub 
 
 The design lives in the sibling Moonwell repository: `../moonwell/docs/superpowers/specs/2026-09-30-moonwell-systems-design.md`
 (Part 1 binds every release; each release has its own spec and plan in `../moonwell/docs/superpowers/`). Release 1
-(v0.1.0): scheduler, signal, scope, time. Releases 2 to 5: dummy, buffs and aura; damage; physics; persistence.
+(v0.1.0): scheduler, signal, scope, time. Release 2 (v0.2.0): buffs, aura, dummy, on `internal/ordered.lua`. Releases 3
+to 5: damage; physics; persistence.
 
 ## Rules (spec §4)
 
@@ -46,4 +47,8 @@ then tag, pre-release and tag consumption with both libraries.
 - The runner restores globals between suites but not tables changed in place: a test that replaces `os.time` must
   restore it.
 - `tools/lib.lua` wraps Windows command lines in an extra pair of quotes, because cmd.exe strips the outer ones.
-- LuaLS: `math.tointeger` returns `integer?`; `systems.time` uses `whole()` after its own integer check.
+- LuaLS: `math.tointeger` returns `integer?`; `systems.time` uses `whole()` after its own integer check. It narrows a
+  union through `type(x) == 'string'`, not through `math.type`. Type user callbacks `fun(...): ...`: YueScript returns
+  a callback's last expression, and a `fun()` parameter makes LuaLS flag that.
+- An object's field must never share a name with one of its methods (the ordered map's key array is `order`, not
+  `keys`): the field would hide the method.
