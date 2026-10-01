@@ -75,16 +75,25 @@ local planted = Lib.expectMarked('tests/natives-negative.lua', Lib.diagnose(lual
 print("LuaLS: src/systems is clean against Moonwell's natives; " .. planted .. ' planted mistakes detected')
 
 -- A map importing one entry point bundles only that module, what it requires, and the wrappers it names.
-local public = {'scheduler', 'signal', 'scope', 'time'}
+local public = {'scheduler', 'signal', 'scope', 'time', 'buffs', 'aura', 'dummy'}
 local wrappersPublic = {'unit', 'player', 'item', 'destructable', 'rect', 'region', 'force', 'group', 'timer', 'effect',
     'trigger', 'texttag', 'sound', 'lightning', 'image', 'ubersplat', 'fogmodifier', 'dialog', 'multiboard',
     'leaderboard', 'quest', 'defeatcondition', 'timerdialog', 'frame', 'damage', 'sync'}
+-- `systems` and `wrappers` name the other public modules an entry may, and must, bundle.
+local unitFamily = {unit = true, player = true, item = true, timer = true}
 local entries = {
-    time = {source = 'import "systems.time" as Time\nprint Time.formatDuration 5\n', wrappers = {}},
-    signal = {source = 'import "systems.signal" as Signal\ns = Signal.new!\ns\\dispose!\n', wrappers = {}},
-    scope = {source = 'import "systems.scope" as Scope\ns = Scope.new!\ns\\dispose!\n', wrappers = {}},
-    scheduler = {source = 'import "systems.scheduler" as Scheduler\nc = Scheduler.new!\nc\\dispose!\n',
+    time = {source = 'import "systems.time" as Time\nprint Time.formatDuration 5\n', systems = {}, wrappers = {}},
+    signal = {source = 'import "systems.signal" as Signal\ns = Signal.new!\ns\\dispose!\n', systems = {},
+        wrappers = {}},
+    scope = {source = 'import "systems.scope" as Scope\ns = Scope.new!\ns\\dispose!\n', systems = {}, wrappers = {}},
+    scheduler = {source = 'import "systems.scheduler" as Scheduler\nc = Scheduler.new!\nc\\dispose!\n', systems = {},
         wrappers = {timer = true}},
+    buffs = {source = 'import "systems.buffs" as BuffStore\nimport "systems.scheduler" as Scheduler\n'
+        .. 's = BuffStore.new Scheduler.new!\ns\\dispose!\n', systems = {scheduler = true}, wrappers = unitFamily},
+    aura = {source = 'import "systems.aura" as Aura\nprint Aura\n', systems = {buffs = true, scheduler = true},
+        wrappers = unitFamily},
+    dummy = {source = 'import "systems.dummy" as Dummies\nimport "systems.scheduler" as Scheduler\n'
+        .. 'd = Dummies.new Scheduler.new!\nd\\dispose!\n', systems = {scheduler = true}, wrappers = unitFamily},
 }
 -- A module name followed by a closing quote, so wrappers.timer does not match wrappers.timerdialog.
 local function bundles(bundle, name)
@@ -96,8 +105,9 @@ for _, entry in ipairs(public) do
     local bundle = Lib.read(consumer .. '/dist/stage/map.w3x/war3map.lua')
     if not bundles(bundle, 'systems.' .. entry) then error(entry .. '-only bundle lacks systems.' .. entry, 0) end
     for _, other in ipairs(public) do
-        if other ~= entry and bundles(bundle, 'systems.' .. other) then
-            error(entry .. '-only bundle includes systems.' .. other, 0)
+        local allowed = entries[entry].systems[other] == true
+        if other ~= entry and bundles(bundle, 'systems.' .. other) ~= allowed then
+            error(entry .. '-only bundle: systems.' .. other .. (allowed and ' missing' or ' included'), 0)
         end
     end
     for _, name in ipairs(wrappersPublic) do
@@ -107,7 +117,7 @@ for _, entry in ipairs(public) do
         end
     end
 end
-print('Moonwell: Scheduler-, Signal-, Scope- and Time-only maps bundle only what they import')
+print('Moonwell: every entry point (' .. #public .. ') bundles only what it imports')
 
 -- The gate example builds and has clean editor diagnostics.
 local gate = io.open('examples/gate.yue', 'rb')

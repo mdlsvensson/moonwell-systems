@@ -1,6 +1,6 @@
 -- Every error a public function raises for wrong arguments is a [systems] error at the caller's line (spec §4.2).
 -- The sweep calls every function of every module with an empty table as its first argument.
-local modules = {'scheduler', 'signal', 'scope', 'time'}
+local modules = {'scheduler', 'signal', 'scope', 'time', 'buffs', 'aura', 'dummy'}
 
 test('every public function given a wrong argument points at its caller', function()
     local wrong = {}

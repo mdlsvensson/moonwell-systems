@@ -71,14 +71,14 @@ end
 ---@return boolean accepted
 local function issue(unit, request)
     local order, target, point = request.order, request.target, request.point
-    if math.type(order) == 'integer' then
-        if target ~= nil then return unit:issueTargetOrderById(order, target) end
-        if point ~= nil then return unit:issuePointOrderById(order, point.x, point.y) end
-        return unit:issueOrderById(order)
+    if type(order) == 'string' then
+        if target ~= nil then return unit:issueTargetOrder(order, target) end
+        if point ~= nil then return unit:issuePointOrder(order, point.x, point.y) end
+        return unit:issueOrder(order)
     end
-    if target ~= nil then return unit:issueTargetOrder(order, target) end
-    if point ~= nil then return unit:issuePointOrder(order, point.x, point.y) end
-    return unit:issueOrder(order)
+    if target ~= nil then return unit:issueTargetOrderById(order, target) end
+    if point ~= nil then return unit:issuePointOrderById(order, point.x, point.y) end
+    return unit:issueOrderById(order)
 end
 
 ---@param lease MoonwellSystems.DummyLease
