@@ -5,6 +5,9 @@ import "systems.scope" as Scope
 import "systems.time" as Time
 import "systems.dummy" as Dummies
 import "systems.damage" as DamageSystem
+import "systems.geometry" as Geometry
+import "systems.missile" as Missiles
+import "systems.knockback" as Knockbacks
 
 mw.on_main ->
   scope = Scope.new!
@@ -21,3 +24,12 @@ mw.on_main ->
   damage\beforeArmor (hit) -> hit\setAmount hit.amount * 2
   damage\afterArmor ((hit) -> hit\cancel! if hit\isLethal!), 5
   damage\observe (hit) -> print hit.amount, hit.metadata
+  missiles = scope\add Missiles.new clock
+  missiles\launch
+    x: 0, y: 0, vx: 900, vy: 0, radius: 16, lifetime: 1, model: "bolt.mdl"
+    steer: (missile, dt) ->
+      vx, vy, vz = missile\getVelocity!
+      missile\setVelocity Geometry.turnToward vx, vy, vz, 0, 1, 0, 3 * dt
+    onHit: (missile, unit) -> print unit\getName!, missile\getHitCount!
+  knockbacks = scope\add Knockbacks.new clock, pathing: "terrain"
+  print knockbacks\getCount!

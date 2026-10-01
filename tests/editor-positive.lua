@@ -57,6 +57,35 @@ damage:deal({source = hero, target = hero, amount = 5, attack = true, ranged = f
     metadata = 'spell'})
 local current = damage:getCurrent()
 print(current and current.phase)
+local Geometry = require('systems.geometry')
+local Terrain = require('systems.terrain')
+local Missiles = require('systems.missile')
+local Knockbacks = require('systems.knockback')
+local Effect = require('wrappers.effect')
+local terrain = scope:add(Terrain.new({itemType = 2003790951}))
+print(terrain:height(0, 0), terrain:isWalkable(0, 0), terrain:isClear(0, 0), terrain:inBounds(0, 0))
+print(Geometry.length(3, 4), Geometry.segmentSphere(0, 0, 0, 1, 0, 0, 1, 0, 0, 1), Geometry.orientation(1, 0, 0))
+local bolt = 'Abilities\\Weapons\\BallistaMissile\\BallistaMissile.mdl'
+local missiles = scope:add(Missiles.new(clock, {terrain = true, targetOffset = 50, maxTargetRadius = 128}))
+local missile = missiles:launch({x = 0, y = 0, height = 60, vx = 900, vy = 0, az = -100, radius = 16, lifetime = 2,
+    maxRange = 1000, maxHits = 3, model = bolt, scale = 1.5, data = {damage = 40},
+    filter = function(unit, flying) return unit ~= hero and flying:isActive() end,
+    steer = function(flying, dt)
+        local x, y, z = flying:getPosition()
+        local vx, vy, vz = flying:getVelocity()
+        flying:setVelocity(Geometry.turnToward(vx, vy, vz, hero:getX() - x, hero:getY() - y, -z, 3 * dt))
+    end,
+    onHit = function(flying, unit) damage:deal({source = hero, target = unit, amount = flying.data.damage}) end,
+    onEnd = function(flying, reason) print(flying:getAge(), flying:getTravelled(), flying:getHitCount(), reason) end})
+print(missile:getEffect(), missiles:getCount())
+missiles:launch({x = 0, y = 0, vx = 500, vy = 0, radius = 8, lifetime = 1, followGround = true, face = false,
+    effect = Effect.create(bolt, 0, 0)}):dispose()
+local knockbacks = scope:add(Knockbacks.new(clock, {sampleStep = 16, pathing = function(unit, fromX, fromY, toX, toY)
+    return unit ~= hero and terrain:isClear(toX, toY) and fromX ~= fromY
+end}))
+local knockback = knockbacks:apply(hero, {angle = math.atan(1, 0), distance = 300, duration = 0.4, falloff = 'linear',
+    onEnd = function(ended, reason) print(ended:getUnit():getName(), reason) end})
+print(knockback:isActive(), knockback:getRemaining(), knockbacks:get(hero) == knockback, knockbacks:getCount())
 print(scope:isActive())
 scope:dispose()
 return true

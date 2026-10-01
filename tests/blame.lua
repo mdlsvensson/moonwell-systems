@@ -1,7 +1,8 @@
 -- Every error a public function raises for wrong arguments is a [systems] error at the caller's line (spec §4.2).
 -- The sweep calls every function of every module, and of every class a module exposes (such as DamageSystem.Hit),
 -- with an empty table as its first argument.
-local modules = {'scheduler', 'signal', 'scope', 'time', 'buffs', 'aura', 'dummy', 'damage'}
+local modules = {'scheduler', 'signal', 'scope', 'time', 'buffs', 'aura', 'dummy', 'damage', 'geometry', 'terrain',
+    'missile', 'knockback'}
 
 ---@return integer checked How many functions raised.
 local function sweep(name, class, wrong)

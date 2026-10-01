@@ -6,6 +6,13 @@ test('the time module loads no wrappers module', function()
     for name in pairs(package.loaded) do assert(not name:find('^wrappers%.'), name) end
 end)
 
+test('geometry and terrain load no wrappers module', function()
+    require('systems.geometry')
+    require('systems.terrain')
+    eq(totalCalls(), 0)
+    for name in pairs(package.loaded) do assert(not name:find('^wrappers%.'), name) end
+end)
+
 test('importing every module calls no native', function()
     for _, name in ipairs({'scheduler', 'signal', 'scope', 'time'}) do require('systems.' .. name) end
     eq(totalCalls(), 0)
@@ -34,4 +41,12 @@ test('the dummy module calls no native at import and loads no group or trigger m
     eq(totalCalls(), 0)
     eq(package.loaded['wrappers.group'], nil)
     eq(package.loaded['wrappers.trigger'], nil)
+end)
+
+test('the missile and knockback modules call no native at import and load no group module', function()
+    require('systems.missile')
+    require('systems.knockback')
+    eq(totalCalls(), 0)
+    eq(package.loaded['wrappers.effect'] ~= nil, true)
+    eq(package.loaded['wrappers.group'], nil)
 end)

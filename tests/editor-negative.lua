@@ -23,4 +23,14 @@ damage:observe(function(hit) hit:setAmount('1') end) -- EXPECT param-type-mismat
 local current = damage:getCurrent()
 print(current.amount) -- EXPECT need-check-nil
 DamageSystem.new({maxQueue = 'many'}) -- EXPECT assign-type-mismatch
+local Geometry = require('systems.geometry')
+local Terrain = require('systems.terrain')
+local Missiles = require('systems.missile')
+local Knockbacks = require('systems.knockback')
+Geometry.length('3', 4) -- EXPECT param-type-mismatch
+Terrain.new():height(0) -- EXPECT missing-parameter
+Missiles.new(clock):nonexistent() -- EXPECT undefined-field
+Missiles.new(clock, {terrain = 'yes'}) -- EXPECT assign-type-mismatch
+Knockbacks.new(clock, {pathing = 'walls'}) -- EXPECT assign-type-mismatch
+Knockbacks.new(clock):apply(clock, {angle = 0, distance = 1, duration = 1}) -- EXPECT param-type-mismatch
 return true
