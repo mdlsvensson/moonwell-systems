@@ -418,3 +418,243 @@ test('new and the listener functions check their arguments at the caller', funct
     failsAt(function() DamageSystem.getCurrent({}) end, 'DamageSystem.getCurrent: expected DamageSystem')
     failsAt(function() DamageSystem.dispose({}) end, 'DamageSystem.dispose: expected DamageSystem')
 end)
+
+-- Script damage and attribution.
+
+local function deal(system, target, amount, metadata, source)
+    system:deal({source = unit(source or 's'), target = unit(target), amount = amount, metadata = metadata})
+end
+
+test('deal needs a started system, runs at once and carries its metadata', function()
+    local system = new()
+    local seen = {}
+    system:beforeArmor(function(hit) hit:setAmount(hit.amount + 2) end)
+    system:observe(function(hit)
+        seen[#seen + 1] = tostring(hit.metadata) .. ':' .. hit.amount .. ':' .. tostring(hit.isAttack)
+    end)
+    failsAt(function() system:deal({source = unit('s'), target = unit('t'), amount = 10}) end,
+        'DamageSystem.deal: the system is not started')
+    system:start()
+    resetCalls()
+    deal(system, 't', 10, 'spell')
+    eq(join(seen), 'spell:6.0:false')
+    expectCall('UnitDamageTarget', handle('s'), handle('t'), 10, false, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL,
+        WEAPON_TYPE_WHOKNOWS)
+    system:deal({source = unit('s'), target = unit('t'), amount = 0, attack = true, ranged = true,
+        attackType = ATTACK_TYPE_CHAOS, damageType = DAMAGE_TYPE_UNIVERSAL, weaponType = WEAPON_TYPE_METAL})
+    expectCall('UnitDamageTarget', handle('s'), handle('t'), 0, true, true, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_UNIVERSAL,
+        WEAPON_TYPE_METAL)
+    eq(system:getCurrent(), nil); eq(#PRINTED, 0)
+end)
+
+test('a nested native hit never inherits metadata, and the same two units claim it once', function()
+    local system = new()
+    local seen, nested = {}, false
+    system:beforeArmor(function(hit)
+        seen[#seen + 1] = 'pre ' .. nameOf(hit.target) .. ' ' .. tostring(hit.metadata)
+        if nameOf(hit.target) == 'outer' and not nested then
+            nested = true
+            pre('inner'); post('inner')
+            pre('outer'); post('outer')
+        end
+    end)
+    system:observe(function(hit) seen[#seen + 1] = 'post ' .. nameOf(hit.target) .. ' ' .. tostring(hit.metadata) end)
+    system:start()
+    deal(system, 'outer', 10, 'spell')
+    pre('attack'); post('attack')
+    eq(join(seen), 'pre outer spell,pre inner nil,post inner nil,pre outer nil,post outer nil,post outer spell,'
+        .. 'pre attack nil,post attack nil')
+    eq(#PRINTED, 0)
+end)
+
+test('deals from listeners run first in first out after the hit, and the chain limit recovers', function()
+    local messages = {}
+    local system = new({maxChain = 3, onError = function(message) messages[#messages + 1] = message end})
+    local order = {}
+    system:beforeArmor(function(hit)
+        local target = nameOf(hit.target)
+        order[#order + 1] = 'pre:' .. target
+        deal(system, target .. '+', 1)
+        if target == 'a' then deal(system, 'b', 1) end
+    end)
+    system:observe(function(hit) order[#order + 1] = 'post:' .. nameOf(hit.target) end)
+    system:start()
+    deal(system, 'a', 10)
+    eq(join(dealt), 'a,a+,b')
+    eq(join(order), 'pre:a,post:a,pre:a+,post:a+,pre:b,post:b')
+    eq(#messages, 1); eq(messages[1], 'more than 3 deals in one chain; 2 queued deals dropped')
+    eq(system:getCurrent(), nil)
+    deal(system, 'c', 1)
+    eq(join(dealt), 'a,a+,b,c,c+,c++')
+    eq(#messages, 2); eq(messages[2], 'more than 3 deals in one chain; 1 queued deals dropped')
+    eq(#PRINTED, 0)
+end)
+
+test('a deal from an afterArmor listener waits until the observers have run', function()
+    local system = new()
+    local order = {}
+    system:afterArmor(function(hit)
+        if nameOf(hit.target) == 'a' then deal(system, 'b', 1) end
+    end)
+    system:observe(function(hit) order[#order + 1] = nameOf(hit.target) end)
+    system:start()
+    pre('a'); post('a')
+    eq(join(order), 'a,b'); eq(system:getCurrent(), nil); eq(#PRINTED, 0)
+end)
+
+test('separate deals do not share a chain', function()
+    local system = new({maxChain = 2})
+    system:start()
+    for _ = 1, 5 do deal(system, 't', 1) end
+    eq(#dealt, 5); eq(#PRINTED, 0)
+end)
+
+test('a full queue raises at the listener and keeps the accepted deals', function()
+    local messages = {}
+    local system = new({maxQueue = 2, onError = function(message) messages[#messages + 1] = message end})
+    system:beforeArmor(function(hit)
+        if nameOf(hit.target) == 'a' then
+            for _, target in ipairs({'b', 'c', 'd'}) do deal(system, target, 1) end
+        end
+    end)
+    system:start()
+    deal(system, 'a', 1)
+    eq(join(dealt), 'a,b,c'); eq(#messages, 1)
+    assert(messages[1]:find('DamageSystem.deal: the queue is full (2 deals)', 1, true), messages[1])
+    assert(messages[1]:find('^tests/damage%.lua:%d+: '), messages[1])
+end)
+
+test('the chain budget survives a settle', function()
+    local messages = {}
+    local system = new({maxChain = 2, onError = function(message) messages[#messages + 1] = message end})
+    system:beforeArmor(function(hit)
+        if nameOf(hit.target) == 'spell' then deal(system, 'spell', 1) end
+    end)
+    onDeal = function() pre('missing') end
+    system:start()
+    deal(system, 'spell', 1)
+    eq(join(dealt), 'spell')
+    settle(); settle(); settle()
+    eq(join(dealt), 'spell,spell')
+    eq(#messages, 1); eq(messages[1], 'more than 2 deals in one chain; 1 queued deals dropped')
+end)
+
+test('a deal with no DAMAGED releases its metadata before the next hit', function()
+    local system = new()
+    local seen = {}
+    system:beforeArmor(function(hit) seen[#seen + 1] = tostring(hit.metadata) end)
+    system:observe(function(hit)
+        seen[#seen + 1] = 'observed ' .. tostring(hit.metadata) .. ' ' .. tostring(hit.paired)
+    end)
+    system:start()
+    omitPost = true
+    deal(system, 'same', 0, 'cancelled-spell')
+    post('same') -- must not pair with the deal's hit
+    pre('same'); post('same')
+    eq(join(seen), 'cancelled-spell,observed nil false,nil,observed nil true'); eq(#PRINTED, 0)
+end)
+
+test('a queued deal with a disposed wrapper is skipped, and a rejected native call is silent', function()
+    local system = new()
+    local seen = 0
+    system:beforeArmor(function(hit)
+        if nameOf(hit.target) == 'a' then
+            deal(system, 'doomed', 1); deal(system, 'b', 1)
+            unit('doomed'):remove()
+        end
+    end)
+    system:observe(function() seen = seen + 1 end)
+    system:start()
+    deal(system, 'a', 1)
+    eq(join(dealt), 'a,b'); eq(seen, 2)
+    rejected = true
+    resetCalls()
+    deal(system, 't', 1); deal(system, 't', 1)
+    eq(callCount('UnitDamageTarget'), 2); eq(seen, 2); eq(#PRINTED, 0)
+end)
+
+test('deal copies the request', function()
+    local system = new()
+    local request = {source = unit('s'), target = unit('later'), amount = 3}
+    system:beforeArmor(function(hit)
+        if nameOf(hit.target) == 'a' then
+            system:deal(request)
+            request.target, request.amount = unit('changed'), 99
+        end
+    end)
+    system:start()
+    deal(system, 'a', 1)
+    eq(join(dealt), 'a,later')
+    expectCall('UnitDamageTarget', handle('s'), handle('later'), 3, false, false, ATTACK_TYPE_NORMAL,
+        DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+    eq(#PRINTED, 0)
+end)
+
+test('dispose inside a listener drops the queued deals', function()
+    local system = new()
+    system:beforeArmor(function()
+        deal(system, 'never', 1)
+        system:dispose()
+    end)
+    system:start()
+    deal(system, 'outer', 1)
+    eq(join(dealt), 'outer'); eq(system:getCurrent(), nil)
+    failsAt(function() system:deal({source = unit('s'), target = unit('t'), amount = 1}) end,
+        'DamageSystem.deal: the system is disposed')
+    eq(#PRINTED, 0)
+end)
+
+test('sourceOf credits another Unit; nil, a failure and a wrong value keep the dealer', function()
+    local messages, answer = {}, nil
+    local system = new({
+        onError = function(message) messages[#messages + 1] = message end,
+        sourceOf = function(dealer)
+            if answer == 'fail' then error('resolver broke', 0) end
+            if answer == 'wrong' then return 5 end
+            if nameOf(dealer) == 'dummy' then return unit('hero') end
+            return nil
+        end,
+    })
+    local seen = {}
+    system:observe(function(hit)
+        seen[#seen + 1] = nameOf(hit.source) .. ' via ' .. nameOf(hit.dealer) .. ' ' .. tostring(hit.metadata)
+    end)
+    system:start()
+    pre('t', 10, 'dummy'); post('t', 5, 'dummy')
+    pre('t'); post('t')
+    deal(system, 't', 1, 'spell', 'dummy')
+    post('t', 5, 'dummy')
+    eq(join(seen), 'hero via dummy nil,s via s nil,hero via dummy spell,hero via dummy nil'); eq(#messages, 0)
+    answer = 'fail'
+    pre('t', 10, 'dummy'); post('t', 5, 'dummy')
+    answer = 'wrong'
+    pre('t', 10, 'dummy'); post('t', 5, 'dummy')
+    eq(seen[5], 'dummy via dummy nil'); eq(seen[6], 'dummy via dummy nil')
+    eq(#messages, 2); eq(messages[1], 'resolver broke'); eq(messages[2], 'expected a Unit or nil')
+    eq(#PRINTED, 0)
+    system = new({sourceOf = function() error('printed resolver', 0) end})
+    system:start()
+    pre('t'); post('t')
+    eq(#PRINTED, 1); eq(PRINTED[1], '[systems] Damage sourceOf failed: printed resolver')
+end)
+
+test('deal checks its arguments at the caller', function()
+    local system = new()
+    system:start()
+    resetCalls()
+    failsAt(function() system:deal(5) end, 'DamageSystem.deal: expected a damage request table')
+    local gone = unit('gone')
+    gone:remove()
+    local cases = {
+        {'source', {source = 5}}, {'source', {source = gone}}, {'target', {target = {}}}, {'target', {target = gone}},
+        {'amount', {amount = -1}}, {'amount', {amount = 0 / 0}}, {'amount', {amount = '1'}},
+        {'attack', {attack = 1}}, {'ranged', {ranged = 'yes'}},
+    }
+    for _, case in ipairs(cases) do
+        local request = {source = unit('s'), target = unit('t'), amount = 1}
+        for key, value in pairs(case[2]) do request[key] = value end
+        failsAt(function() system:deal(request) end, 'DamageSystem.deal: expected a damage request: ' .. case[1])
+    end
+    eq(callCount('UnitDamageTarget'), 0)
+    failsAt(function() DamageSystem.deal({}, {}) end, 'DamageSystem.deal: expected DamageSystem')
+end)
