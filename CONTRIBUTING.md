@@ -83,3 +83,9 @@ v0.1.0: passed 2026-09-30 with Moonwell 0.5.2 (`main`) and moonwell-wrappers `v0
 `172543665e299943076feb647f86e1308d728aa0` and wrappers commit `e9c2880993fd8b0755da8d2d442654cea467c913`, the 6
 fetched systems files matched the tag's `src/` byte for byte, and the lock stayed unchanged after removing the map's
 `.moonwell/` and checking again.
+
+v0.2.0: passed 2026-10-01 with Moonwell 0.5.2 (`main`) and moonwell-wrappers `v0.7.0`, in a map made fresh with
+`init --link`: check, normal and minified builds of the gate example (18 modules); `moonwell.lock` recorded systems
+commit `afabc3d977077ddf01cb4556bfdaee2e62b51476` and wrappers commit `e9c2880993fd8b0755da8d2d442654cea467c913`, the
+10 fetched systems files matched the tag's `src/` byte for byte, and the lock stayed unchanged after removing the map's
+`.moonwell/` and checking again.
