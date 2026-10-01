@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-10-01)
 
 Release 3 of the wc3-lib port (spec `2026-10-01-moonwell-systems-release-3-design` in the Moonwell repository).
 
@@ -9,6 +9,26 @@ Release 3 of the wc3-lib port (spec `2026-10-01-moonwell-systems-release-3-desig
   and carries `metadata`. `sourceOf` credits a hit to another Unit, for example a dummy's damage to its caster.
 - `Callback.report` in `systems.internal.callback`.
 - The blame sweep also covers the classes a module exposes (`DamageSystem.Hit`).
+
+### Release gate
+
+Automated checks passed 2026-10-01 on Windows: 12 suites (90 tests) with YueScript 0.34.2; Lua 5.3.6 syntax (32
+files); Moonwell normal and minified builds; LuaLS 3.19.1 fixtures (14 expected negative diagnostics) and `src/systems`
+against Moonwell's native declarations; all 8 entry points bundle only what they import (damage alone bundles no
+scheduler, buffs or dummy module); both gate examples with clean editor diagnostics.
+
+In-game gate, 2026-10-01, Warcraft III 3.0.0.24268, `deno task gate systems-damage`, normal build:
+
+- A 100-damage `deal` between footmen read 100.0 before armor and 89.28571 after it, and the target lost that life.
+- A hit doubled before armor (200.0, 178.5714 after armor) and capped at 50 after armor took 50.0 life.
+- A cancelled hit took no life. Warcraft still sent its DAMAGED event, so its observers ran with amount 0.
+- A dummy's Storm Bolt was credited to the paladin (`source` Paladin, `dealer` Dummy). It caused two hits: one of 0,
+  then 100.0, which armor did not reduce.
+- A `deal` made inside a listener ran after the first hit's observers (89.28571, then the follow-up's 4.464285).
+- Magic damage on a spell-immune Spell Breaker ran the `beforeArmor` listeners and took no life; no DAMAGED event
+  came, so no observer ran, and nothing was reported as a failure.
+- A real attack read `isAttack` true (13.0 before armor, 11.60714 after).
+- After `dispose()`, a further hit printed nothing.
 
 ## 0.2.0 (2026-10-01)
 

@@ -68,14 +68,15 @@ above the centre your footman faces a hostile footman; a hostile Spell Breaker s
 13. At 1 s: `Damage baseline: Footman via Footman -> Footman 100.0 > 100.0 > <X> > <X> attack false`, then
     `Damage step 1 life lost <X>` (100 reduced by armor; record X).
 14. At 2 s: `Damage crit: … 100.0 > 200.0 > <2X> > 50.0 attack false`, then `Damage step 2 life lost 50.0`.
-15. At 3 s: `Damage step 3 life lost 0.0`. Record whether a `Damage cancel: … 100.0 > 0.0 > 0.0 > 0.0` line prints
-    before it (whether Warcraft sends DAMAGED for a zero amount).
-16. At 4 s: `Damage step 4 dummy cast accepted true`; a Storm Bolt hits the hostile footman and
-    `Damage native: Paladin via Dummy -> Footman …` prints (record the amounts).
+15. At 3 s: `Damage cancel: … 100.0 > 0 > 0.0 > 0 attack false` (Warcraft sends DAMAGED for a zero amount), then
+    `Damage step 3 life lost 0.0`.
+16. At 4 s: `Damage step 4 dummy cast accepted true`; a Storm Bolt hits the hostile footman and two
+    `Damage native: Paladin via Dummy -> Footman …` lines print: first `0.0 > 0.0 > 0.0 > 0.0`, then
+    `100.0 > 100.0 > 100.0 > 100.0` (armor does not reduce it).
 17. At 5 s: `Damage chain: follow-up queued`, then the `Damage chain: …` line, then
     `Damage follow-up: … 5.0 > 5.0 > …`, then `Damage step 5 life lost <n>` (both hits).
-18. At 6 s: `Damage step 6 life lost <n>` for the Spell Breaker. Record n, and whether
-    `Damage immune: before armor ran, amount 100.0` and a `Damage immune: …` hit line print.
+18. At 6 s: `Damage immune: before armor ran, amount 100.0`, then `Damage step 6 life lost 0.0`, with no
+    `Damage immune: …` hit line: a spell-immune unit gets no DAMAGED event for magic damage.
 19. At 7 s: `Damage step 7 attack ordered true`; your footman attacks, and one
     `Damage native: Footman via Footman -> Footman … attack true` line prints.
 20. At 9 s: `Damage gate done`, and no line after it. No `[systems] … failed` line prints in the run.
@@ -89,6 +90,14 @@ v0.2.0: passed 2026-10-01, run by the maintainer on Warcraft III Reforged 3.0.0.
 printed as for v0.1.0. Steps 7 to 12 printed as listed: the Storm Bolt hit with no dummy model visible and 125.3767
 life lost; the buff went `1 -> 2`, ticked at 2.5, 1.5 and 0.5 s remaining and expired with speed and colour restored;
 `killed death` and `removed removed`; the aura applied and ended `source-lost`; the passive buff ended `disposed`.
+
+v0.3.0: passed 2026-10-01, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build,
+`deno task gate systems-damage`). Steps 13 to 20 printed as listed: the baseline read 100.0 > 100.0 > 89.28571 with
+89.28577 life lost; the crit read 100.0 > 200.0 > 178.5714 > 50 with 50.0 life lost; the cancelled hit printed its
+observer line with 0.0 life lost; the Storm Bolt printed two hits credited to the paladin (0.0, then 100.0), with no
+dummy model visible; the chain read 89.28571 and its follow-up 5.0 > 4.464285, with 93.75012 life lost; the Spell
+Breaker ran `beforeArmor`, lost 0.0 life and got no observer line; the attack read 13.0 > 11.60714 with `attack true`,
+once; nothing printed after `Damage gate done`, and no failure line printed.
 
 ## Publication and tag gate (maintainer)
 

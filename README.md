@@ -6,10 +6,10 @@ pipeline today; physics and save codes in later releases. Annotated Lua 5.3, bui
 [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers), with editor completion for YueScript and Lua
 maps.
 
-**Status:** `v0.2.0` (2026-10-01): `systems.buffs`, `systems.aura` and `systems.dummy` join `systems.scheduler`,
-`systems.signal`, `systems.scope` and `systems.time`. It needs
-moonwell-wrappers `v0.7.0` or later and Moonwell 0.5.2 or later. Multiplayer desync checks are deferred until before
-Moonwell 1.0. Its in-game gate passed on 3.0.0.24268.
+**Status:** `v0.3.0` (2026-10-01): `systems.damage` joins `systems.scheduler`, `systems.signal`, `systems.scope`,
+`systems.time`, `systems.buffs`, `systems.aura` and `systems.dummy`. It needs moonwell-wrappers `v0.7.0` or later and
+Moonwell 0.5.2 or later. Multiplayer desync checks are deferred until before Moonwell 1.0. Its in-game gate passed on
+3.0.0.24268.
 
 ## Use it
 
@@ -18,7 +18,7 @@ Moonwell libraries cannot declare dependencies, so list both libraries in the ma
 ```pkl
 libraries {
   ["wrappers"] { github = "mdlsvensson/moonwell-wrappers"; tag = "v0.7.0"; dir = "src" }
-  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.2.0"; dir = "src" }
+  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.3.0"; dir = "src" }
 }
 ```
 
@@ -242,7 +242,11 @@ dummy's lease lasts.
 
 - `hit.source` and `hit.dealer` are nil when the game gives no source.
 - `isAttack` is the game's value: false for script damage, even with `attack: true`.
-- A hit whose DAMAGED event never comes gets no `afterArmor` or observer call.
+- A hit whose DAMAGED event never comes gets no `afterArmor` or observer call. Measured on 3.0.0.24268: magic damage
+  on a spell-immune unit runs the `beforeArmor` listeners and nothing more, while a cancelled hit still gets its
+  DAMAGED event, so its `afterArmor` listeners and observers run with amount 0.
+- One spell can cause several hits. Storm Bolt gave two (measured): one of 0, then its 100 damage, which armor did
+  not reduce. Observers that count hits should skip those with amount 0.
 - To react to one unit's hits, look `hit.target` up in your own table inside one listener.
 
 ```yue
