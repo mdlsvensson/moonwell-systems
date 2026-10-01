@@ -5,7 +5,8 @@ deterministic scheduler, signals, ownership scopes, time helpers, script buffs, 
 physics and save codes in later releases. Annotated Lua 5.3, built on [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers),
 with editor completion for YueScript and Lua maps.
 
-**Status:** `v0.1.0` (2026-09-30): `systems.scheduler`, `systems.signal`, `systems.scope` and `systems.time`. It needs
+**Status:** `v0.2.0` (2026-10-01): `systems.buffs`, `systems.aura` and `systems.dummy` join `systems.scheduler`,
+`systems.signal`, `systems.scope` and `systems.time`. It needs
 moonwell-wrappers `v0.7.0` or later and Moonwell 0.5.2 or later. Multiplayer desync checks are deferred until before
 Moonwell 1.0. Its in-game gate passed on 3.0.0.24268.
 
@@ -16,7 +17,7 @@ Moonwell libraries cannot declare dependencies, so list both libraries in the ma
 ```pkl
 libraries {
   ["wrappers"] { github = "mdlsvensson/moonwell-wrappers"; tag = "v0.7.0"; dir = "src" }
-  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.1.0"; dir = "src" }
+  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.2.0"; dir = "src" }
 }
 ```
 

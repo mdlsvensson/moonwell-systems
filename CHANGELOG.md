@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-10-01)
 
 Release 2 of the wc3-lib port (spec `2026-09-30-moonwell-systems-release-2-design` in the Moonwell repository).
 
@@ -12,6 +12,25 @@ Release 2 of the wc3-lib port (spec `2026-09-30-moonwell-systems-release-2-desig
 - `systems.internal.ordered`: the insertion-ordered map behind every unit-keyed collection.
 - Callback parameters are typed `fun(...): ...`, so YueScript callbacks, which return their last expression, pass the
   editor's checks.
+
+### Release gate
+
+Automated checks passed 2026-10-01 on Windows: 11 suites (58 tests) with YueScript 0.34.2; Lua 5.3.6 syntax (30
+files); Moonwell normal and minified builds; LuaLS 3.19.1 fixtures (9 expected negative diagnostics) and `src/systems`
+against Moonwell's native declarations; all 7 entry points bundle only what they import (buffs alone bundles no dummy
+module); the gate example with clean editor diagnostics.
+
+In-game gate, 2026-10-01, Warcraft III 3.0.0.24268, `deno task gate systems`, normal build. Release 1's part passed
+again with the same readings. Release 2:
+
+- A dummy of the README's unit type cast Storm Bolt at a footman: the order was accepted, `isDummy` and `sourceOf`
+  held while leased, no dummy model was visible, and 2.5 s later the count was 0 and the footman had lost 125.38 life.
+- A `stack` buff went `1 -> 2`, ticked three times (2.5, 1.5 and 0.5 s remaining) and ended `expired`; the footman's
+  colour and move speed came back.
+- Pruning: a killed footman's buff ended with `death` and its passive buff stayed; a footman removed with raw
+  `RemoveUnit` lost its buff with `removed`.
+- An aura applied its buff when a footman was moved into range and removed it (`source-lost`) when it was moved out.
+- Disposing the store ended the passive buff with `disposed`. No `[systems] ... failed` line printed.
 
 ## 0.1.0 (2026-09-30)
 

@@ -65,6 +65,11 @@ printed as listed: the reference timer read 0.5000038, 1.000004, 1.500004 and 2.
 runs; the failing task printed once (`war3map.lua:1822`); the footman disappeared at 3 s; the tick stayed at 128 after
 dispose; the local UTC time was correct.
 
+v0.2.0: passed 2026-10-01, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build). Steps 1 to 6
+printed as for v0.1.0. Steps 7 to 12 printed as listed: the Storm Bolt hit with no dummy model visible and 125.3767
+life lost; the buff went `1 -> 2`, ticked at 2.5, 1.5 and 0.5 s remaining and expired with speed and colour restored;
+`killed death` and `removed removed`; the aura applied and ended `source-lost`; the passive buff ended `disposed`.
+
 ## Publication and tag gate (maintainer)
 
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the
