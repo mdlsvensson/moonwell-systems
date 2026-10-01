@@ -6,8 +6,9 @@ pipeline, missiles and knockbacks today; save codes in a later release. Annotate
 [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers), with editor completion for YueScript and Lua
 maps.
 
-**Status:** `v0.3.0` (2026-10-01): `systems.damage` joins `systems.scheduler`, `systems.signal`, `systems.scope`,
-`systems.time`, `systems.buffs`, `systems.aura` and `systems.dummy`. It needs moonwell-wrappers `v0.7.0` or later and
+**Status:** `v0.4.0` (2026-10-01): `systems.geometry`, `systems.terrain`, `systems.missile` and
+`systems.knockback` join `systems.scheduler`, `systems.signal`, `systems.scope`, `systems.time`, `systems.buffs`,
+`systems.aura`, `systems.dummy` and `systems.damage`. It needs moonwell-wrappers `v0.7.0` or later and
 Moonwell 0.5.2 or later. Multiplayer desync checks are deferred until before Moonwell 1.0. Its in-game gate passed on
 3.0.0.24268.
 
@@ -18,7 +19,7 @@ Moonwell libraries cannot declare dependencies, so list both libraries in the ma
 ```pkl
 libraries {
   ["wrappers"] { github = "mdlsvensson/moonwell-wrappers"; tag = "v0.7.0"; dir = "src" }
-  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.3.0"; dir = "src" }
+  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.4.0"; dir = "src" }
 }
 ```
 

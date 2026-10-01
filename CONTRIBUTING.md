@@ -140,6 +140,16 @@ dummy model visible; the chain read 89.28571 and its follow-up 5.0 > 4.464285, w
 Breaker ran `beforeArmor`, lost 0.0 life and got no observer line; the attack read 13.0 > 11.60714 with `attack true`,
 once; nothing printed after `Damage gate done`, and no failure line printed.
 
+v0.4.0: passed 2026-10-01, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal builds,
+`deno task gate systems-physics` and `deno task gate systems-knockback`). Steps 21 to 29 printed as listed: the hit at
+x -145.9 after 450.0; the three footmen at x -100.0, 100.0 and 300.0; exactly 600; the arc landed at x -84.4; the
+straight bolt ended at x 131.2 and the `followGround` one reached z 195.7; the homing bolt curved north to y 290.6;
+`isClear` read true on the item and false at the tree; the missiles cost 1.597 ms per step. Steps 30 to 36 printed as
+listed: 300.0; blocked after 234.4; 400.0 through the tree; replaced, then 100.0 north; the walker moved 133.8 and
+135.0 and kept its order; the knockbacks cost 2.528 ms per step. A first run of the physics gate read 3.603 ms per
+step for the missiles; the loop was changed after a probe (`../wrappers-gate/PROBE-MISSILE-PERF-RESULTS.md`), and the
+gate was run again.
+
 ## Publication and tag gate (maintainer)
 
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the

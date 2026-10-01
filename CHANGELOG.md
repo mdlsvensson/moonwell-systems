@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-10-01)
 
 Release 4 of the wc3-lib port (spec `2026-10-01-moonwell-systems-release-4-design` in the Moonwell repository).
 
@@ -11,7 +11,44 @@ Release 4 of the wc3-lib port (spec `2026-10-01-moonwell-systems-release-4-desig
   gravity, steering, `followGround`, and an effect that faces its travel.
 - `systems.knockback`: one knockback per unit, by angle, distance and duration, with linear falloff and pathing
   policies; no policy leaves the world bounds.
-- The per-tick loops call raw natives on handles the systems own, and allocate nothing per call.
+- The per-tick loops call raw natives on handles the systems own, and allocate nothing per call. A missile step
+  rules out a unit that is too far with one native (`IsUnitInRangeXY`, which counts the unit's collision size).
+
+### Release gate
+
+Automated checks passed 2026-10-01 on Windows: 17 suites (144 tests) with YueScript 0.34.2; Lua 5.3.6 syntax (43
+files); Moonwell normal and minified builds; LuaLS 3.19.1 fixtures (20 expected negative diagnostics) and `src/systems`
+against Moonwell's native declarations; all 12 entry points bundle only what they import (`systems.geometry` and
+`systems.terrain` bundle no wrappers module); the four gate examples with clean editor diagnostics.
+
+In-game gate, 2026-10-01, Warcraft III 3.0.0.24268, normal builds, in two runs.
+
+`deno task gate systems-physics`:
+
+- A straight bolt pointed along its travel, hit the hostile footman at x -145.9 and ended `hit-limit` after 450.0.
+- A bolt with `maxHits = 3` passed an allied footman, pierced two hostile ones and ended at the third.
+- A bolt with nothing in its way ended `range` at exactly 600.
+- A bolt under gravity nosed up, turned over and landed (`ground`) at x -84.4, on the ground.
+- At a raised hill, a straight bolt ended `ground` on the slope at x 131.2, and a `followGround` bolt rode over it
+  (highest z 195.7).
+- A steered bolt that started north bent round in an arc (to y 290.6) into the footman east of its start.
+- `isClear` read true on a lying item, which stayed visible; at a tree `isWalkable` read true and `isClear` false.
+- 100 missiles among 20 footmen cost 1.597 ms per step (budget: 3 ms).
+
+`deno task gate systems-knockback`, one footman at a time:
+
+- A push of 300 with linear falloff moved it 300.0 (`completed`).
+- A push at a tree ended `blocked` after 234.4, in front of the tree; under `"terrain"` pathing the same push went
+  through it (400.0, `completed`).
+- A second push ended the first with `replaced` before it moved; the footman moved 100.0 north only.
+- A walking footman was pushed sideways (133.8 east, 135.0 north) and kept its move order.
+- 100 knockbacks under `"obstacles"` cost 2.528 ms per step (budget: 3 ms).
+
+Found at the gate: the first run read 3.603 ms per step for the missiles, over the budget. A probe then measured that
+`GroupEnumUnitsInRange` tests unit origins and clears its group first, and that `IsUnitInRangeXY` counts a unit's
+collision size; the missile step was changed to ask that native first. The first run's homing bolt finished its turn
+in two steps and looked straight, and its five simultaneous knockbacks could not be followed, so the homing step
+changed and the knockbacks got a run of their own.
 
 ## 0.3.0 (2026-10-01)
 
