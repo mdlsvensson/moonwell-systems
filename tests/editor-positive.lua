@@ -86,6 +86,26 @@ end}))
 local knockback = knockbacks:apply(hero, {angle = math.atan(1, 0), distance = 300, duration = 0.4, falloff = 'linear',
     onEnd = function(ended, reason) print(ended:getUnit():getName(), reason) end})
 print(knockback:isActive(), knockback:getRemaining(), knockbacks:get(hero) == knockback, knockbacks:getCount())
+local Codec = require('systems.codec')
+local Sync = require('systems.sync')
+local Savefile = require('systems.savefile')
+local codec = Codec.new({version = 2, secret = 'k3-vale-of-ash', schemas = {
+    {version = 1, fields = {{key = 'gold', kind = 'integer', min = 0, max = 1000000}},
+        migrate = function(old) return {gold = old.gold, items = {}, name = '', hardMode = false} end},
+    {version = 2, fields = {{key = 'gold', kind = 'integer', min = 0, max = 1000000},
+        {key = 'items', kind = 'list', maxLength = 6, of = {kind = 'integer', min = 0, max = 2147483647}},
+        {key = 'name', kind = 'string', maxLength = 16}, {key = 'hardMode', kind = 'boolean'}}}}})
+local code = codec:encode({gold = 500, items = {1, 2}, name = 'Hero', hardMode = true}, owner:getName())
+local decoded, why, detail = codec:decode(code, owner:getName())
+print(decoded and decoded.gold, why, detail, codec:getVersion(), codec:getMaxLength())
+local sync = scope:add(Sync.new(clock, {prefix = 'ask', timeout = 5, maxLength = 100}))
+sync:start()
+sync:ask(owner, function() return tostring(Time.localUtc()) end, function(text, reason) print(text, reason) end)
+local saves = scope:add(Savefile.new(clock, {codec = codec, folder = 'Vale', prefix = 'save', timeout = 5,
+    abilities = {1097690227, 1097035619}, onError = print}))
+saves:start()
+saves:save(owner, 'slot1', {gold = 1, items = {}, name = '', hardMode = false})
+saves:load(owner, 'slot1', function(data, reason) print(data and data.gold, reason) end)
 print(scope:isActive())
 scope:dispose()
 return true

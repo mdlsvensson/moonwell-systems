@@ -8,6 +8,9 @@ import "systems.damage" as DamageSystem
 import "systems.geometry" as Geometry
 import "systems.missile" as Missiles
 import "systems.knockback" as Knockbacks
+import "systems.codec" as Codec
+import "systems.savefile" as Savefile
+import "wrappers.player" as Player
 
 mw.on_main ->
   scope = Scope.new!
@@ -33,3 +36,11 @@ mw.on_main ->
     onHit: (missile, unit) -> print unit\getName!, missile\getHitCount!
   knockbacks = scope\add Knockbacks.new clock, pathing: "terrain"
   print knockbacks\getCount!
+  codec = Codec.new
+    version: 1, secret: "k3-vale-of-ash"
+    schemas: {{version: 1, fields: {{key: "gold", kind: "integer", min: 0, max: 100}}}}
+  saves = scope\add Savefile.new clock, codec: codec, folder: "Vale"
+  saves\start!
+  owner = Player.fromIndex 0
+  saves\save owner, "slot1", gold: 5
+  saves\load owner, "slot1", (data, reason) -> print data and data.gold, reason

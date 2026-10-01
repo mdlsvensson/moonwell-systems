@@ -33,4 +33,13 @@ Missiles.new(clock):nonexistent() -- EXPECT undefined-field
 Missiles.new(clock, {terrain = 'yes'}) -- EXPECT assign-type-mismatch
 Knockbacks.new(clock, {pathing = 'walls'}) -- EXPECT assign-type-mismatch
 Knockbacks.new(clock):apply(clock, {angle = 0, distance = 1, duration = 1}) -- EXPECT param-type-mismatch
+local Codec = require('systems.codec')
+local Sync = require('systems.sync')
+local Savefile = require('systems.savefile')
+Codec.new({version = '1', secret = 's', schemas = {}}) -- EXPECT assign-type-mismatch
+Codec.new({version = 1, secret = 's', schemas = {}}):encode('data') -- EXPECT param-type-mismatch
+Sync.new(clock):ask(clock, print, print) -- EXPECT param-type-mismatch
+Sync.new(clock, {timeout = 'soon'}) -- EXPECT assign-type-mismatch
+Savefile.new(clock, {codec = clock, folder = 'Vale'}) -- EXPECT assign-type-mismatch
+Savefile.new(clock):start() -- EXPECT missing-parameter
 return true

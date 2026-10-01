@@ -76,7 +76,7 @@ print("LuaLS: src/systems is clean against Moonwell's natives; " .. planted .. '
 
 -- A map importing one entry point bundles only that module, what it requires, and the wrappers it names.
 local public = {'scheduler', 'signal', 'scope', 'time', 'buffs', 'aura', 'dummy', 'damage', 'geometry', 'terrain',
-    'missile', 'knockback'}
+    'missile', 'knockback', 'codec', 'sync', 'savefile'}
 local wrappersPublic = {'unit', 'player', 'item', 'destructable', 'rect', 'region', 'force', 'group', 'timer', 'effect',
     'trigger', 'texttag', 'sound', 'lightning', 'image', 'ubersplat', 'fogmodifier', 'dialog', 'multiboard',
     'leaderboard', 'quest', 'defeatcondition', 'timerdialog', 'frame', 'damage', 'sync'}
@@ -107,6 +107,15 @@ local entries = {
     knockback = {source = 'import "systems.knockback" as Knockbacks\nimport "systems.scheduler" as Scheduler\n'
         .. 'k = Knockbacks.new Scheduler.new!\nk\\dispose!\n', systems = {scheduler = true},
         wrappers = unitFamily},
+    codec = {source = 'import "systems.codec" as Codec\n'
+        .. 'c = Codec.new version: 1, secret: "s", schemas: {{version: 1, fields: {}}}\nprint c\\getVersion!\n',
+        systems = {}, wrappers = {}},
+    sync = {source = 'import "systems.sync" as Sync\nimport "systems.scheduler" as Scheduler\n'
+        .. 's = Sync.new Scheduler.new!\ns\\dispose!\n', systems = {scheduler = true},
+        wrappers = {timer = true, player = true, sync = true}},
+    savefile = {source = 'import "systems.savefile" as Savefile\nprint Savefile\n',
+        systems = {codec = true, sync = true, scheduler = true},
+        wrappers = {timer = true, player = true, sync = true}},
 }
 -- A module name followed by a closing quote, so wrappers.timer does not match wrappers.timerdialog.
 local function bundles(bundle, name)
@@ -134,11 +143,11 @@ print('Moonwell: every entry point (' .. #public .. ') bundles only what it impo
 
 -- The gate examples build and have clean editor diagnostics.
 Lib.remove(consumer .. '/lua/positive.lua')
-for _, name in ipairs({'gate', 'gate-damage', 'gate-physics', 'gate-knockback'}) do
+for _, name in ipairs({'gate', 'gate-damage', 'gate-physics', 'gate-knockback', 'gate-save'}) do
     Lib.copy('examples/' .. name .. '.yue', consumer .. '/src/main.yue')
     moonwell('check'); moonwell('build --minify')
     compileEditor()
     clean(Lib.diagnose(luals, consumer, name), 'Gate example ' .. name)
 end
-print('Gate examples: all four build and their editor diagnostics are clean; game execution remains manual')
+print('Gate examples: all five build and their editor diagnostics are clean; game execution remains manual')
 print('Integration passed')

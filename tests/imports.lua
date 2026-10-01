@@ -13,6 +13,12 @@ test('geometry and terrain load no wrappers module', function()
     for name in pairs(package.loaded) do assert(not name:find('^wrappers%.'), name) end
 end)
 
+test('the codec loads no wrappers module', function()
+    require('systems.codec')
+    eq(totalCalls(), 0)
+    for name in pairs(package.loaded) do assert(not name:find('^wrappers%.'), name) end
+end)
+
 test('importing every module calls no native', function()
     for _, name in ipairs({'scheduler', 'signal', 'scope', 'time'}) do require('systems.' .. name) end
     eq(totalCalls(), 0)
@@ -49,4 +55,14 @@ test('the missile and knockback modules call no native at import and load no gro
     eq(totalCalls(), 0)
     eq(package.loaded['wrappers.effect'] ~= nil, true)
     eq(package.loaded['wrappers.group'], nil)
+end)
+
+test('the sync and savefile modules call no native at import and load no trigger module', function()
+    require('systems.sync')
+    eq(package.loaded['systems.codec'] ~= nil and package.loaded['systems.internal.preload'] == nil, true)
+    require('systems.savefile')
+    eq(totalCalls(), 0)
+    eq(package.loaded['wrappers.sync'] ~= nil, true)
+    eq(package.loaded['systems.internal.preload'] ~= nil, true)
+    eq(package.loaded['wrappers.trigger'], nil)
 end)

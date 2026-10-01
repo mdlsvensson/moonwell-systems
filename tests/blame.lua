@@ -2,7 +2,7 @@
 -- The sweep calls every function of every module, and of every class a module exposes (such as DamageSystem.Hit),
 -- with an empty table as its first argument.
 local modules = {'scheduler', 'signal', 'scope', 'time', 'buffs', 'aura', 'dummy', 'damage', 'geometry', 'terrain',
-    'missile', 'knockback'}
+    'missile', 'knockback', 'codec', 'sync', 'savefile'}
 
 ---@return integer checked How many functions raised.
 local function sweep(name, class, wrong)
