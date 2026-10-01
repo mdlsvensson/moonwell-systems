@@ -9,7 +9,8 @@ passed 2026-10-01).
 The design lives in the sibling Moonwell repository: `../moonwell/docs/superpowers/specs/2026-09-30-moonwell-systems-design.md`
 (Part 1 binds every release; each release has its own spec and plan in `../moonwell/docs/superpowers/`). Release 1
 (v0.1.0): scheduler, signal, scope, time. Release 2 (v0.2.0): buffs, aura, dummy, on `internal/ordered.lua`. Release 3
-(v0.3.0): damage. Releases 4 and 5: physics; persistence.
+(v0.3.0): damage. Release 4 (v0.4.0): geometry, terrain, missile, knockback, on `internal/vector.lua` and
+`internal/ground.lua`. Release 5: persistence.
 
 ## Rules (spec §4)
 
@@ -39,8 +40,8 @@ Environment: `MOONWELL_WRAPPERS`, `MOONWELL_CLI`, `MOONWELL_YUE`, `MOONWELL_LUAL
 
 Spec, then a plan of test-first tasks, then implementation task by task; the maintainer approves each spec. Commit on
 `main`, staging explicit paths. The maintainer runs the in-game gate in `../wrappers-gate` (`deno task gate systems`
-for releases 1 and 2, `deno task gate systems-damage` for release 3); then tag, pre-release and tag consumption with
-both libraries.
+for releases 1 and 2, `deno task gate systems-damage` for release 3, `deno task gate systems-physics` for release 4);
+then tag, pre-release and tag consumption with both libraries.
 
 ## Pitfalls
 
@@ -57,3 +58,10 @@ both libraries.
 - LuaLS's `--check` mangles a project path that contains `--` (it reads it as an option): keep work folders out of
   such paths.
 - LuaLS reports `need-check-nil` for a nil-able local, not for a chained call (`a:b().c`): assign the result first.
+- Hot loops (missile and knockback steps) call raw natives and the unchecked `internal/vector.lua` and
+  `internal/ground.lua`; the public `geometry` and `terrain` modules are for maps. Do not add argument checks or
+  table allocations to the internal ones.
+- A mutation that removes a loop bound can make a test loop forever and eat memory: run mutation checks with a
+  timeout per run.
+- A YueScript function that ends in a bare `return` compiles to Lua that LuaLS flags (`redundant-return`): end gate
+  functions with a statement instead.

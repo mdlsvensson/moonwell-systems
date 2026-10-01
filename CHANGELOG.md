@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+Release 4 of the wc3-lib port (spec `2026-10-01-moonwell-systems-release-4-design` in the Moonwell repository).
+
+- `systems.geometry`: `length`, `turnToward`, `segmentSphere` and `orientation`, on plain numbers.
+- `systems.terrain`: ground height, terrain walkability, `isClear` (which also sees trees and buildings, by placing
+  a hidden item) and the world bounds.
+- `systems.missile`: missiles with swept collision, heights above the ground, a filter per missile, piercing, range,
+  gravity, steering, `followGround`, and an effect that faces its travel.
+- `systems.knockback`: one knockback per unit, by angle, distance and duration, with linear falloff and pathing
+  policies; no policy leaves the world bounds.
+- The per-tick loops call raw natives on handles the systems own, and allocate nothing per call.
+
 ## 0.3.0 (2026-10-01)
 
 Release 3 of the wc3-lib port (spec `2026-10-01-moonwell-systems-release-3-design` in the Moonwell repository).

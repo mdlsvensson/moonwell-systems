@@ -1,8 +1,8 @@
 # Moonwell Systems
 
 Opt-in Warcraft III systems for [Moonwell](https://github.com/mdlsvensson/moonwell) maps, ported from `wc3-lib`: a
-deterministic scheduler, signals, ownership scopes, time helpers, script buffs, auras, dummy casters and a damage
-pipeline today; physics and save codes in later releases. Annotated Lua 5.3, built on
+deterministic scheduler, signals, ownership scopes, time helpers, script buffs, auras, dummy casters, a damage
+pipeline, missiles and knockbacks today; save codes in a later release. Annotated Lua 5.3, built on
 [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers), with editor completion for YueScript and Lua
 maps.
 
@@ -260,6 +260,115 @@ damage\start!
 damage\deal source: hero, target: enemy, amount: 50, metadata: "crit"
 ```
 
+### `systems.geometry`
+
+- `Geometry.length(x, y, z = 0)`
+- `Geometry.turnToward(vx, vy, vz, tx, ty, tz, maxAngle)` returns `x, y, z`: the velocity turned toward a direction
+  by at most `maxAngle`, at the same speed
+- `Geometry.segmentSphere(fx, fy, fz, tx, ty, tz, cx, cy, cz, radius)` returns the fraction (0 to 1) of the segment
+  at which it first touches the sphere, or nil
+- `Geometry.orientation(vx, vy, vz)` returns `yaw, pitch` for `effect:setOrientation(yaw, pitch, 0)`
+
+Pure functions on plain numbers, so nothing is allocated per call. Angles are radians. In Warcraft a positive pitch
+points an effect's nose down (measured on 3.0.0.24268), so `orientation` gives a negative pitch for a climbing
+velocity.
+
+### `systems.terrain`
+
+- `Terrain.new({itemType?})`
+- `height(x, y)`, `isWalkable(x, y)`, `isClear(x, y)`, `inBounds(x, y)`, `dispose()`
+
+A Terrain owns one location, one hidden item and one rect, each created on first use. Measured on 3.0.0.24268:
+
+- `isWalkable` reads the terrain only (`IsTerrainPathable`): it does not see trees or buildings.
+- `isClear` sees them: it places a hidden item (`itemType`, default `'wolg'`) on the point and reads where it landed.
+  Visible items within 32 units are hidden for the check and shown again. The hidden item stays where it last landed.
+- `height` is `GetLocationZ`. It follows temporary terrain deformations, such as a Thunder Clap ripple, while they
+  last; w3ts marks it as possibly different between machines then.
+- A unit's absolute height is `terrain:height(x, y)` plus `GetUnitFlyHeight`; `BlzGetUnitZ` gives only the ground
+  height.
+- `inBounds` is true up to 64 units from the world's edge. Moving a unit outside the world bounds can crash the game.
+
+### `systems.missile`
+
+- `Missiles.new(clock, {onError?, terrain = true, targetOffset = 50, maxTargetRadius = 128})`
+- `launch(request)` returns a missile; `getCount()`, `dispose()`
+- a missile: `getPosition()` (x, y, absolute z), `getVelocity()`, `setVelocity(vx, vy, vz)`, `getAge()`,
+  `getTravelled()`, `getHitCount()`, `getEffect()`, `isActive()`, `dispose()`, and its `data`
+
+The request is a table: `x`, `y`, `height` (above the ground, default 60), `vx`, `vy`, `vz?`, `ax?`, `ay?`, `az?`,
+`radius`, `lifetime`, `maxRange?`, `maxHits?` (default 1; more pierces), `followGround?`, `model?` or `effect?`,
+`scale?`, `face?` (default true), `filter?(unit, missile)`, `steer?(missile, dt)`, `onHit?(missile, unit)`,
+`onEnd?(missile, reason)` and `data?`. It ends with `hit-limit`, `expired`, `range`, `ground`, `cancelled`,
+`disposed` or `error`.
+
+- **Swept collision.** Each step tests the whole segment the missile travels against a sphere around every unit near
+  it, so a fast missile never jumps over a unit. Hits come in order of distance; a tie keeps the engine's enumeration
+  order. A unit is hit at most once.
+- **Pass a `filter`.** Without one, a missile hits every living unit, the one it was launched from included. Each
+  missile has its own filter, so one system serves every team.
+- **Heights are above the ground.** A target's centre is the ground at its feet, plus its fly height, plus
+  `targetOffset`. A missile whose step ends below the ground ends with `ground`, on the ground. `followGround` keeps
+  the missile at its `height` over hills instead. `terrain = false` makes the ground flat at 0 and samples nothing.
+- **The effect** (`model`, or an `effect` you hand over) is moved, turned along the travel unless `face = false`, and
+  destroyed when the missile ends.
+- **Targets larger than `maxTargetRadius`** are hit as if they had that radius: the search around the path uses it.
+- **Callbacks** may dispose any missile or the system. A failing `steer`, `filter` or `onHit` ends that missile with
+  `error` and is reported; the others still move.
+- The system ticks from its scheduler only while missiles are in flight.
+
+```yue
+import "systems.missile" as Missiles
+import "systems.geometry" as Geometry
+
+missiles = Missiles.new clock
+missiles\launch
+  x: hero\getX!, y: hero\getY!, vx: 900, vy: 0, radius: 16, lifetime: 1.2, maxHits: 3
+  model: "Abilities\\Weapons\\BallistaMissile\\BallistaMissile.mdl"
+  filter: (unit) -> unit\getOwner! ~= owner
+  onHit: (missile, unit) -> damage\deal source: hero, target: unit, amount: 40
+
+-- An arc: gravity pulls it down, and it ends with "ground" where it lands.
+missiles\launch x: 0, y: 0, vx: 500, vy: 0, vz: 500, az: -1000, radius: 16, lifetime: 5, onEnd: explode
+
+-- Homing: steer runs first in every step.
+missiles\launch
+  x: 0, y: 0, vx: 600, vy: 0, radius: 16, lifetime: 5
+  steer: (missile, dt) ->
+    x, y, z = missile\getPosition!
+    vx, vy, vz = missile\getVelocity!
+    missile\setVelocity Geometry.turnToward vx, vy, vz, target\getX! - x, target\getY! - y, 0, 2.5 * dt
+```
+
+### `systems.knockback`
+
+- `Knockbacks.new(clock, {onError?, pathing = "obstacles", sampleStep = 32})`
+- `apply(Unit, request)` returns a knockback; `get(Unit)`, `getCount()`, `dispose()`
+- a knockback: `getUnit()`, `isActive()`, `getRemaining()`, `dispose()`
+
+The request is a table: `angle` (radians, as `math.atan(dy, dx)` gives; the wrappers' unit facings are degrees),
+`distance`, `duration`, `falloff?` (`"none"`, or `"linear"` to slow to a stop) and `onEnd?(knockback, reason)`. It
+ends with `completed`, `replaced`, `interrupted`, `invalid`, `blocked`, `disposed` or `error`.
+
+- **One knockback per unit:** a new one replaces the old, which ends with `replaced`.
+- **The unit is moved with `SetUnitX/Y`,** from where it is in each step. It keeps its orders and is never paused
+  (measured: `SetUnitPosition` would clear the order), so it keeps walking while pushed. Stun it yourself if it
+  should not.
+- **Pathing** is checked before each move, and a refused move ends the knockback with `blocked`:
+  `"obstacles"` (the default) stops at unwalkable terrain, trees and buildings; `"terrain"` only at unwalkable
+  terrain, so units slide through trees; `"none"` never; a function `(unit, fromX, fromY, toX, toY)` decides itself.
+  Flying units skip the `"obstacles"` and `"terrain"` checks.
+- **No policy moves a unit outside the world bounds:** that can crash the game.
+- A unit pushed into an obstacle under `"terrain"` or `"none"` is not stuck: it can walk out (measured).
+
+```yue
+import "systems.knockback" as Knockbacks
+
+knockbacks = Knockbacks.new clock
+angle = math.atan target\getY! - caster\getY!, target\getX! - caster\getX!
+knockbacks\apply target, angle: angle, distance: 300, duration: 0.4, falloff: "linear"
+```
+
 ## Changes from wc3-lib
 
 - Failures are printed or passed to `onError`, never rethrown (wc3-lib rethrew task and release errors).
@@ -280,3 +389,11 @@ damage\deal source: hero, target: enemy, amount: 50, metadata: "crit"
 - `sourceOf`, `hit.dealer` and hits with no source are new (wc3-lib dropped hits without a source).
 - Only failures are reported: a missing or unpaired DAMAGED event and a rejected native call are silent. A full queue
   raises instead of returning false, and `deal` returns nothing.
+- Missiles and knockbacks have no ports: `Missiles` and `Knockbacks` are the Warcraft systems, and they tick from the
+  scheduler they are given (`update(dt)` is not public).
+- Vectors are plain numbers, not `{x, y, z}` tables.
+- Missile heights are above the ground by default (`terrain = false` gives the old flat behavior), and `targetOffset`
+  replaces the `centerHeight` callback. Each missile has its own `filter`; `followGround` and the effect's facing are
+  new; contact ties follow the enumeration order, not handle ids.
+- A knockback takes an angle and a distance (`knockbackVelocity` is gone). Pathing has a default that sees trees and
+  buildings, and no policy leaves the world bounds.

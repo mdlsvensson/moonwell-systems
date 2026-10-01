@@ -1,0 +1,204 @@
+-- The moonwell-systems physics gate (release 4). Built by the gate map's `systems-physics` run (../wrappers-gate,
+-- deno task gate systems-physics); CONTRIBUTING lists every expected message. It starts just after the map loads, and
+-- also writes its lines to CustomMapData\moonwell-systems-physics.pld.
+import "moonwell" as mw
+import "moonwell.macros" as {:$FourCC}
+import "wrappers.player" as Player
+import "wrappers.unit" as Unit
+import "wrappers.timer" as Timer
+import "wrappers.destructable" as Destructable
+import "wrappers.item" as Item
+import "systems.scheduler" as Scheduler
+import "systems.geometry" as Geometry
+import "systems.terrain" as Terrain
+import "systems.missile" as Missiles
+import "systems.knockback" as Knockbacks
+
+BOLT = "Abilities\\Weapons\\BallistaMissile\\BallistaMissile.mdl"
+FOOTMAN = $FourCC "hfoo"
+TREE = $FourCC "LTlt"
+MOVE = 851986
+
+lines = {}
+say = (...) ->
+  parts = {"Physics"}
+  for index = 1, select "#", ...
+    parts[#parts + 1] = tostring (select index, ...)
+  line = table.concat parts, " "
+  print line
+  lines[#lines + 1] = line
+save = ->
+  PreloadGenClear!
+  PreloadGenStart!
+  for line in *lines
+    Preload (line\gsub "\"", "'")
+  PreloadGenEnd "moonwell-systems-physics.pld"
+  PreloadGenClear!
+round = (value) -> string.format "%.1f", value
+
+physicsGate = (owner) ->
+  clock = Scheduler.new!
+  clock\start!
+  hostile = Player.fromIndex 12
+  terrain = Terrain.new!
+  missiles = Missiles.new clock
+  knockbacks = Knockbacks.new clock
+  throughTrees = Knockbacks.new clock, pathing: "terrain"
+  enemy = (unit) -> unit\getOwner! == hostile
+  nobody = -> false
+  -- Paused units do not fight on their own, so the gate decides everything that happens.
+  target = (x, y) ->
+    unit = Unit.create hostile, FOOTMAN, x, y, 180
+    unit\pause true
+    unit
+  ally = (x, y) ->
+    unit = Unit.create owner, FOOTMAN, x, y, 0
+    unit\pause true
+    unit
+  -- A hill for step 5: a permanent crater with a negative depth raises the ground.
+  TerrainDeformCrater 250, -150, 200, -150, 1, true
+  target(-100, 600)
+  ally(-300, 450)
+  for x in *{-100, 100, 300}
+    target x, 450
+  quarry = target 0, 100
+  Destructable.create TREE, 512, -448, 270, 1, 0
+  Destructable.create TREE, 512, -576, 270, 1, 0
+  slider = ally(-600, -400)
+  stopped = ally 212, -448
+  passer = ally 212, -576
+  swapped = ally(-600, -550)
+  walker = Unit.create owner, FOOTMAN, -600, -700, 0
+
+  -- 1. A straight missile: it hits the hostile footman, and its bolt points along its travel.
+  clock\after 1, ->
+    missiles\launch
+      x: -600, y: 600, vx: 900, vy: 0, radius: 16, lifetime: 2, model: BOLT, filter: enemy
+      onHit: (missile, unit) -> say "1 hit", unit\getName!, "at x", round (missile\getPosition!)
+      onEnd: (missile, reason) -> say "1 end", reason, "travelled", round missile\getTravelled!
+
+  -- 2. Piercing and the filter: it passes the allied footman and hits the three hostile ones in order.
+  clock\after 2.5, ->
+    hits = {}
+    missiles\launch
+      x: -600, y: 450, vx: 900, vy: 0, radius: 16, lifetime: 2, maxHits: 3, model: BOLT, filter: enemy
+      onHit: (_, unit) -> hits[#hits + 1] = round unit\getX!
+      onEnd: (_, reason) -> say "2 end", reason, "hit the footmen at x", table.concat hits, " "
+
+  -- 3. Range: nothing is in its way, and it ends at exactly maxRange.
+  clock\after 4, ->
+    missiles\launch
+      x: -600, y: 300, vx: 900, vy: 0, radius: 16, lifetime: 2, maxRange: 600, model: BOLT, filter: enemy
+      onEnd: (missile, reason) -> say "3 end", reason, "travelled exactly 600", missile\getTravelled! == 600
+
+  -- 4. An arc: gravity pulls it down; the bolt noses up, then down, and lands on the ground.
+  clock\after 5.5, ->
+    missiles\launch
+      x: -600, y: 150, height: 20, vx: 500, vy: 0, vz: 500, az: -1000, radius: 16, lifetime: 5, model: BOLT
+      filter: nobody
+      onEnd: (missile, reason) ->
+        x, y, z = missile\getPosition!
+        say "4 end", reason, "at x", round(x), "height above the ground", round(z - terrain\height(x, y))
+
+  -- 5. The hill: a followGround missile rides over it; a straight one ends on its slope.
+  clock\after 7.5, ->
+    peak = 0
+    missiles\launch
+      x: -600, y: -150, vx: 600, vy: 0, radius: 16, lifetime: 5, maxRange: 1200, followGround: true, model: BOLT
+      filter: nobody
+      steer: (missile) ->
+        _, _, z = missile\getPosition!
+        peak = math.max peak, z
+      onEnd: (_, reason) -> say "5 followGround end", reason, "highest z", round peak
+    missiles\launch
+      x: -600, y: -200, vx: 600, vy: 0, radius: 16, lifetime: 5, model: BOLT, filter: nobody
+      onEnd: (missile, reason) -> say "5 straight end", reason, "at x", round (missile\getPosition!)
+
+  -- 6. Homing: steer turns the missile toward a footman that stands beside its path.
+  clock\after 10, ->
+    missiles\launch
+      x: -600, y: 0, vx: 600, vy: 0, radius: 16, lifetime: 5, model: BOLT
+      filter: (unit) -> unit == quarry
+      steer: (missile, dt) ->
+        x, y, z = missile\getPosition!
+        vx, vy, vz = missile\getVelocity!
+        aimZ = terrain\height(quarry\getX!, quarry\getY!) + 50 - z
+        missile\setVelocity Geometry.turnToward vx, vy, vz, quarry\getX! - x, quarry\getY! - y, aimZ, 2.5 * dt
+      onHit: -> say "6 homing hit the footman beside its path"
+      onEnd: (_, reason) -> say "6 end", reason
+
+  -- 7. Knockbacks: a slide, a tree in the way, the same push under terrain pathing, a replacement, a walking unit.
+  clock\after 12, ->
+    push = (system, label, unit, request) ->
+      startX, startY = unit\getX!, unit\getY!
+      request.onEnd = (_, reason) ->
+        say "7", label, reason, "moved", round(unit\getX! - startX), round(unit\getY! - startY)
+      system\apply unit, request
+    push knockbacks, "slide", slider, angle: 0, distance: 300, duration: 0.6, falloff: "linear"
+    push knockbacks, "into a tree", stopped, angle: 0, distance: 400, duration: 0.8
+    push throughTrees, "terrain pathing through a tree", passer, angle: 0, distance: 400, duration: 0.8
+    push knockbacks, "first push", swapped, angle: 0, distance: 300, duration: 1
+    push knockbacks, "second push", swapped, angle: math.pi / 2, distance: 100, duration: 0.5
+    walker\issuePointOrder "move", 600, -700
+    push knockbacks, "walker", walker, angle: math.pi / 2, distance: 150, duration: 0.5
+  clock\after 12.6, -> say "7 walker keeps its move order", walker\getCurrentOrder! == MOVE
+
+  -- 8. An item on the ground does not block isClear; a tree does, and the terrain check misses it.
+  clock\after 14, ->
+    potion = Item.create $FourCC("phea"), -800, 0
+    say "8 isClear on a lying item", terrain\isClear(-800, 0), "the item is still visible",
+      IsItemVisible potion\getHandle!
+    say "8 at the tree: isWalkable", terrain\isWalkable(512, -448), "isClear", terrain\isClear(512, -448)
+    potion\remove!
+
+  -- 9. Speed: 100 missiles among 20 footmen, then 100 knockbacks, each timed over 320 steps of a clock of their own.
+  clock\after 15, ->
+    bench = Scheduler.new!
+    crowd = for index = 0, 19
+      target 1700 + (index % 5) * 80, 1700 + math.floor(index / 5) * 80
+    fliers = Missiles.new bench
+    for index = 1, 100
+      angle = index * 0.0628
+      fliers\launch
+        x: 1860 + 100 * math.cos(angle), y: 1820 + 100 * math.sin(angle), vx: 10 * math.cos(angle + 1.57)
+        vy: 10 * math.sin(angle + 1.57), radius: 16, lifetime: 60, model: BOLT, filter: nobody
+    started = os.clock!
+    for _ = 1, 320
+      bench\advance!
+    say "9 missiles:", string.format("%.3f", (os.clock! - started) * 1000 / 320), "ms per step; in flight",
+      fliers\getCount!
+    fliers\dispose!
+    herd = for index = 0, 99
+      ally 1700 + (index % 10) * 40, 1300 + math.floor(index / 10) * 40
+    pushed = Knockbacks.new bench
+    for unit in *herd
+      pushed\apply unit, angle: 0, distance: 60, duration: 15
+    started = os.clock!
+    for _ = 1, 320
+      bench\advance!
+    say "9 knockbacks:", string.format("%.3f", (os.clock! - started) * 1000 / 320), "ms per step; active",
+      pushed\getCount!
+    pushed\dispose!
+    for unit in *crowd
+      unit\remove!
+    for unit in *herd
+      unit\remove!
+    bench\dispose!
+
+  clock\after 17, ->
+    missiles\dispose!
+    knockbacks\dispose!
+    throughTrees\dispose!
+    terrain\dispose!
+    clock\dispose!
+    say "gate done"
+    save!
+  say "gate started"
+
+mw.on_main ->
+  start = Timer.create!
+  start\start 0, false, (self) ->
+    self\destroy!
+    SetCameraField CAMERA_FIELD_TARGET_DISTANCE, 2400, 0
+    SetCameraPosition 0, -50
+    physicsGate Player.fromIndex 0
