@@ -1,6 +1,7 @@
--- The moonwell-systems physics gate (release 4). Built by the gate map's `systems-physics` run (../wrappers-gate,
--- deno task gate systems-physics); CONTRIBUTING lists every expected message. It starts just after the map loads, and
--- also writes its lines to CustomMapData\moonwell-systems-physics.pld.
+-- The moonwell-systems physics gate (release 4): missiles and terrain. Built by the gate map's `systems-physics` run
+-- (../wrappers-gate, deno task gate systems-physics); CONTRIBUTING lists every expected message. It starts just after
+-- the map loads, and also writes its lines to CustomMapData\moonwell-systems-physics.pld. Knockbacks have their own
+-- gate, gate-knockback.yue.
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
 import "wrappers.player" as Player
@@ -12,12 +13,10 @@ import "systems.scheduler" as Scheduler
 import "systems.geometry" as Geometry
 import "systems.terrain" as Terrain
 import "systems.missile" as Missiles
-import "systems.knockback" as Knockbacks
 
 BOLT = "Abilities\\Weapons\\BallistaMissile\\BallistaMissile.mdl"
 FOOTMAN = $FourCC "hfoo"
 TREE = $FourCC "LTlt"
-MOVE = 851986
 
 lines = {}
 say = (...) ->
@@ -34,7 +33,9 @@ save = ->
     Preload (line\gsub "\"", "'")
   PreloadGenEnd "moonwell-systems-physics.pld"
   PreloadGenClear!
-round = (value) -> string.format "%.1f", value
+round = (value) ->
+  text = string.format "%.1f", value
+  text == "-0.0" and "0.0" or text
 
 physicsGate = (owner) ->
   clock = Scheduler.new!
@@ -42,8 +43,6 @@ physicsGate = (owner) ->
   hostile = Player.fromIndex 12
   terrain = Terrain.new!
   missiles = Missiles.new clock
-  knockbacks = Knockbacks.new clock
-  throughTrees = Knockbacks.new clock, pathing: "terrain"
   enemy = (unit) -> unit\getOwner! == hostile
   nobody = -> false
   -- Paused units do not fight on their own, so the gate decides everything that happens.
@@ -63,12 +62,6 @@ physicsGate = (owner) ->
     target x, 450
   quarry = target 0, 100
   Destructable.create TREE, 512, -448, 270, 1, 0
-  Destructable.create TREE, 512, -576, 270, 1, 0
-  slider = ally(-600, -400)
-  stopped = ally 212, -448
-  passer = ally 212, -576
-  swapped = ally(-600, -550)
-  walker = Unit.create owner, FOOTMAN, -600, -700, 0
 
   -- 1. A straight missile: it hits the hostile footman, and its bolt points along its travel.
   clock\after 1, ->
@@ -77,7 +70,7 @@ physicsGate = (owner) ->
       onHit: (missile, unit) -> say "1 hit", unit\getName!, "at x", round (missile\getPosition!)
       onEnd: (missile, reason) -> say "1 end", reason, "travelled", round missile\getTravelled!
 
-  -- 2. Piercing and the filter: it passes the allied footman and hits the three hostile ones in order.
+  -- 2. Piercing and the filter: it passes the allied footman, pierces two hostile ones and ends at the third.
   clock\after 2.5, ->
     hits = {}
     missiles\launch
@@ -114,45 +107,31 @@ physicsGate = (owner) ->
       x: -600, y: -200, vx: 600, vy: 0, radius: 16, lifetime: 5, model: BOLT, filter: nobody
       onEnd: (missile, reason) -> say "5 straight end", reason, "at x", round (missile\getPosition!)
 
-  -- 6. Homing: steer turns the missile toward a footman that stands beside its path.
+  -- 6. Homing: the bolt starts north, away from the footman east of it, and steer bends it round in an arc.
   clock\after 10, ->
+    north = 0
     missiles\launch
-      x: -600, y: 0, vx: 600, vy: 0, radius: 16, lifetime: 5, model: BOLT
+      x: -600, y: 0, vx: 0, vy: 600, radius: 16, lifetime: 5, model: BOLT
       filter: (unit) -> unit == quarry
       steer: (missile, dt) ->
         x, y, z = missile\getPosition!
         vx, vy, vz = missile\getVelocity!
+        north = math.max north, y
         aimZ = terrain\height(quarry\getX!, quarry\getY!) + 50 - z
-        missile\setVelocity Geometry.turnToward vx, vy, vz, quarry\getX! - x, quarry\getY! - y, aimZ, 2.5 * dt
-      onHit: -> say "6 homing hit the footman beside its path"
-      onEnd: (_, reason) -> say "6 end", reason
+        missile\setVelocity Geometry.turnToward vx, vy, vz, quarry\getX! - x, quarry\getY! - y, aimZ, 2 * dt
+      onHit: -> say "6 homing hit the footman"
+      onEnd: (_, reason) -> say "6 end", reason, "after curving north to y", round north
 
-  -- 7. Knockbacks: a slide, a tree in the way, the same push under terrain pathing, a replacement, a walking unit.
+  -- 7. An item on the ground does not block isClear; a tree does, and the terrain check misses it.
   clock\after 12, ->
-    push = (system, label, unit, request) ->
-      startX, startY = unit\getX!, unit\getY!
-      request.onEnd = (_, reason) ->
-        say "7", label, reason, "moved", round(unit\getX! - startX), round(unit\getY! - startY)
-      system\apply unit, request
-    push knockbacks, "slide", slider, angle: 0, distance: 300, duration: 0.6, falloff: "linear"
-    push knockbacks, "into a tree", stopped, angle: 0, distance: 400, duration: 0.8
-    push throughTrees, "terrain pathing through a tree", passer, angle: 0, distance: 400, duration: 0.8
-    push knockbacks, "first push", swapped, angle: 0, distance: 300, duration: 1
-    push knockbacks, "second push", swapped, angle: math.pi / 2, distance: 100, duration: 0.5
-    walker\issuePointOrder "move", 600, -700
-    push knockbacks, "walker", walker, angle: math.pi / 2, distance: 150, duration: 0.5
-  clock\after 12.6, -> say "7 walker keeps its move order", walker\getCurrentOrder! == MOVE
-
-  -- 8. An item on the ground does not block isClear; a tree does, and the terrain check misses it.
-  clock\after 14, ->
     potion = Item.create $FourCC("phea"), -800, 0
-    say "8 isClear on a lying item", terrain\isClear(-800, 0), "the item is still visible",
+    say "7 isClear on a lying item", terrain\isClear(-800, 0), "the item is still visible",
       IsItemVisible potion\getHandle!
-    say "8 at the tree: isWalkable", terrain\isWalkable(512, -448), "isClear", terrain\isClear(512, -448)
+    say "7 at the tree: isWalkable", terrain\isWalkable(512, -448), "isClear", terrain\isClear(512, -448)
     potion\remove!
 
-  -- 9. Speed: 100 missiles among 20 footmen, then 100 knockbacks, each timed over 320 steps of a clock of their own.
-  clock\after 15, ->
+  -- 8. Speed: 100 missiles among 20 footmen, timed over 320 steps of a clock of their own.
+  clock\after 13, ->
     bench = Scheduler.new!
     crowd = for index = 0, 19
       target 1700 + (index % 5) * 80, 1700 + math.floor(index / 5) * 80
@@ -165,30 +144,15 @@ physicsGate = (owner) ->
     started = os.clock!
     for _ = 1, 320
       bench\advance!
-    say "9 missiles:", string.format("%.3f", (os.clock! - started) * 1000 / 320), "ms per step; in flight",
+    say "8 missiles:", string.format("%.3f", (os.clock! - started) * 1000 / 320), "ms per step; in flight",
       fliers\getCount!
     fliers\dispose!
-    herd = for index = 0, 99
-      ally 1700 + (index % 10) * 40, 1300 + math.floor(index / 10) * 40
-    pushed = Knockbacks.new bench
-    for unit in *herd
-      pushed\apply unit, angle: 0, distance: 60, duration: 15
-    started = os.clock!
-    for _ = 1, 320
-      bench\advance!
-    say "9 knockbacks:", string.format("%.3f", (os.clock! - started) * 1000 / 320), "ms per step; active",
-      pushed\getCount!
-    pushed\dispose!
     for unit in *crowd
-      unit\remove!
-    for unit in *herd
       unit\remove!
     bench\dispose!
 
-  clock\after 17, ->
+  clock\after 15, ->
     missiles\dispose!
-    knockbacks\dispose!
-    throughTrees\dispose!
     terrain\dispose!
     clock\dispose!
     say "gate done"

@@ -134,11 +134,11 @@ print('Moonwell: every entry point (' .. #public .. ') bundles only what it impo
 
 -- The gate examples build and have clean editor diagnostics.
 Lib.remove(consumer .. '/lua/positive.lua')
-for _, name in ipairs({'gate', 'gate-damage', 'gate-physics'}) do
+for _, name in ipairs({'gate', 'gate-damage', 'gate-physics', 'gate-knockback'}) do
     Lib.copy('examples/' .. name .. '.yue', consumer .. '/src/main.yue')
     moonwell('check'); moonwell('build --minify')
     compileEditor()
     clean(Lib.diagnose(luals, consumer, name), 'Gate example ' .. name)
 end
-print('Gate examples: all three build and their editor diagnostics are clean; game execution remains manual')
+print('Gate examples: all four build and their editor diagnostics are clean; game execution remains manual')
 print('Integration passed')

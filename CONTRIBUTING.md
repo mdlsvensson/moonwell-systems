@@ -81,34 +81,46 @@ above the centre your footman faces a hostile footman; a hostile Spell Breaker s
     `Damage native: Footman via Footman -> Footman … attack true` line prints.
 20. At 9 s: `Damage gate done`, and no line after it. No `[systems] … failed` line prints in the run.
 
-Release 4 (v0.4.0) has its own run, `deno task gate systems-physics`, about 18 seconds, with the camera zoomed out.
-Its lines also go to `Documents\Warcraft III\CustomMapData\moonwell-systems-physics.pld`. Hostile footmen stand in
-the upper rows, a small hill rises right of the centre, and your footmen stand by two trees in the lower rows.
-`Physics gate started` prints first.
+Release 4 (v0.4.0) has two runs of its own. Both also write their lines to
+`Documents\Warcraft III\CustomMapData\` (`moonwell-systems-physics.pld` and `moonwell-systems-knockback.pld`).
+
+`deno task gate systems-physics` (missiles and terrain, about 16 seconds, with the camera zoomed out): hostile
+footmen stand in the upper rows, and a small hill rises right of the centre. `Physics gate started` prints first.
 
 21. At 1 s a bolt flies east along the top row, pointing east, and hits the hostile footman:
-    `Physics 1 hit Footman at x <about -147>`, then `Physics 1 end hit-limit travelled <about 453>`.
-22. At 2.5 s a bolt passes your footman and hits the three hostile ones:
+    `Physics 1 hit Footman at x <about -146>`, then `Physics 1 end hit-limit travelled <about 450>`.
+22. At 2.5 s a bolt passes your footman, pierces two hostile ones and ends at the third:
     `Physics 2 end hit-limit hit the footmen at x -100.0 100.0 300.0`.
 23. At 4 s: `Physics 3 end range travelled exactly 600 true`.
 24. At 5.5 s a bolt climbs nose up, turns over and comes down nose first:
-    `Physics 4 end ground at x <about -80> height above the ground 0.0`.
-25. At 7.5 s two bolts fly east at the hill. One rides over it:
-    `Physics 5 followGround end range highest z <about 210>`. The other ends on its slope:
-    `Physics 5 straight end ground at x <n>` (record n).
-26. At 10 s a bolt curves north into the footman beside its path:
-    `Physics 6 homing hit the footman beside its path`, then `Physics 6 end hit-limit`.
-27. At 12 s, in the lower rows: `Physics 7 first push replaced moved 0.0 0.0` at once; the upper-left footman slides
-    east and slows (`Physics 7 slide completed moved 300.0 0.0`); the footman pushed at the upper tree stops in front
-    of it (`Physics 7 into a tree blocked moved <n> 0.0`, n under 260); the one pushed at the lower tree goes through
-    it (`Physics 7 terrain pathing through a tree completed moved 400.0 0.0`);
-    `Physics 7 second push completed moved 0.0 100.0`; `Physics 7 walker completed moved <x> <y>` with both above 0;
-    and `Physics 7 walker keeps its move order true`.
-28. At 14 s: `Physics 8 isClear on a lying item true the item is still visible true` and
-    `Physics 8 at the tree: isWalkable true isClear false`.
-29. At 15 s the game freezes briefly, then `Physics 9 missiles: <ms> ms per step; in flight 100` and
-    `Physics 9 knockbacks: <ms> ms per step; active 100`. Both must be under 3; record them.
-30. At 17 s: `Physics gate done`. No `[systems] … failed` line prints in the run.
+    `Physics 4 end ground at x <about -84> height above the ground 0.0`.
+25. At 7.5 s two bolts fly east at the hill. One ends on its slope:
+    `Physics 5 straight end ground at x <about 131>`. The other rides over it:
+    `Physics 5 followGround end range highest z <about 196>`.
+26. At 10 s a bolt starts north, bends round to the east and comes down into the footman east of its start:
+    `Physics 6 homing hit the footman`, then `Physics 6 end hit-limit after curving north to y <about 290>`.
+27. At 12 s: `Physics 7 isClear on a lying item true the item is still visible true` and
+    `Physics 7 at the tree: isWalkable true isClear false`.
+28. At 13 s the game freezes briefly, then `Physics 8 missiles: <ms> ms per step; in flight 100`. It must be under
+    3; record it.
+29. At 15 s: `Physics gate done`. No `[systems] … failed` line prints in the run.
+
+`deno task gate systems-knockback` (about 18 seconds): one footman at a time stands left of the centre, and each
+step prints `Knockback <n> next: …` a second before its push. `Knockback gate started` prints first.
+
+30. At 2 s the footman slides east and slows to a stop: `Knockback 1 slide completed moved 300.0 0.0`.
+31. At 5 s, with a tree east of it, the footman is pushed at the tree and stops in front of it:
+    `Knockback 2 into the tree blocked moved <about 234> 0.0`.
+32. At 8 s the same push under terrain pathing slides the footman through the tree:
+    `Knockback 3 through the tree completed moved 400.0 0.0`.
+33. At 11 s the footman moves north only: `Knockback 4 first push replaced moved 0.0 0.0`, then
+    `Knockback 4 second push completed moved 0.0 100.0`.
+34. At 14 s the walking footman is pushed north and keeps walking east:
+    `Knockback 5 walker completed moved <x> <y>` with both above 0, then
+    `Knockback 5 the walker keeps its move order true`.
+35. At 16 s the game freezes briefly, then `Knockback 6 knockbacks: <ms> ms per step; active 100`. It must be
+    under 3; record it.
+36. At 17.5 s: `Knockback gate done`. No `[systems] … failed` line prints in the run.
 
 v0.1.0: passed 2026-09-30, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build). Every message
 printed as listed: the reference timer read 0.5000038, 1.000004, 1.500004 and 2.000004 s for the four half-second
@@ -133,9 +145,9 @@ once; nothing printed after `Damage gate done`, and no failure line printed.
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the
 gate, update the README Status and the tags in its configuration, tag the verified commit `vX.Y.Z`, push the tag and
 create a GitHub pre-release. Then, in a fresh Moonwell map with both libraries from GitHub (the README configuration)
-and each gate example (`examples/gate.yue`, `examples/gate-damage.yue`, `examples/gate-physics.yue`) in turn as
-`src/main.yue`: check, build and build `--minify`; `moonwell.lock` must record both tags' commits; remove the map's
-`.moonwell/`, check again, and the lock must stay unchanged. Record it here.
+and each gate example (`examples/gate.yue`, `examples/gate-damage.yue`, `examples/gate-physics.yue`,
+`examples/gate-knockback.yue`) in turn as `src/main.yue`: check, build and build `--minify`; `moonwell.lock` must
+record both tags' commits; remove the map's `.moonwell/`, check again, and the lock must stay unchanged. Record it here.
 
 v0.1.0: passed 2026-09-30 with Moonwell 0.5.2 (`main`) and moonwell-wrappers `v0.7.0`, in a map made fresh with
 `init --link`: check, normal and minified builds of the gate example; `moonwell.lock` recorded systems commit

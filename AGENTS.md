@@ -40,8 +40,8 @@ Environment: `MOONWELL_WRAPPERS`, `MOONWELL_CLI`, `MOONWELL_YUE`, `MOONWELL_LUAL
 
 Spec, then a plan of test-first tasks, then implementation task by task; the maintainer approves each spec. Commit on
 `main`, staging explicit paths. The maintainer runs the in-game gate in `../wrappers-gate` (`deno task gate systems`
-for releases 1 and 2, `deno task gate systems-damage` for release 3, `deno task gate systems-physics` for release 4);
-then tag, pre-release and tag consumption with both libraries.
+for releases 1 and 2, `deno task gate systems-damage` for release 3, `deno task gate systems-physics` and
+`deno task gate systems-knockback` for release 4); then tag, pre-release and tag consumption with both libraries.
 
 ## Pitfalls
 
@@ -61,6 +61,12 @@ then tag, pre-release and tag consumption with both libraries.
 - Hot loops (missile and knockback steps) call raw natives and the unchecked `internal/vector.lua` and
   `internal/ground.lua`; the public `geometry` and `terrain` modules are for maps. Do not add argument checks or
   table allocations to the internal ones.
+- Measured on 3.0.0.24268 (`../wrappers-gate/PROBE-MISSILE-PERF-RESULTS.md`): `GroupEnumUnitsInRange` tests unit
+  origins and clears the group first; `IsUnitInRangeXY` is true up to the range plus the unit's collision size; a
+  native costs 0.3 to 0.5 µs, an enumerated unit about 0.8 µs more, and `SetItemPosition` 16 µs or more. A missile
+  step therefore asks `IsUnitInRangeXY` first and reads nothing else from most units.
+- A gate step must show one thing at a time, and a turn must be large enough to see: the first physics gate's
+  homing bolt finished turning in two steps, and its five simultaneous knockbacks could not be followed.
 - A mutation that removes a loop bound can make a test loop forever and eat memory: run mutation checks with a
   timeout per run.
 - A YueScript function that ends in a bare `return` compiles to Lua that LuaLS flags (`redundant-return`): end gate

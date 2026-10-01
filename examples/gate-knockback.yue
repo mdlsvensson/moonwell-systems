@@ -1,0 +1,117 @@
+-- The moonwell-systems knockback gate (release 4). Built by the gate map's `systems-knockback` run (../wrappers-gate,
+-- deno task gate systems-knockback); CONTRIBUTING lists every expected message. One footman is pushed at a time, at
+-- the centre of the screen, and each push is announced a second before it happens. It starts just after the map
+-- loads, and also writes its lines to CustomMapData\moonwell-systems-knockback.pld.
+import "moonwell" as mw
+import "moonwell.macros" as {:$FourCC}
+import "wrappers.player" as Player
+import "wrappers.unit" as Unit
+import "wrappers.timer" as Timer
+import "wrappers.destructable" as Destructable
+import "systems.scheduler" as Scheduler
+import "systems.knockback" as Knockbacks
+
+FOOTMAN = $FourCC "hfoo"
+TREE = $FourCC "LTlt"
+MOVE = 851986
+START_X = -300
+
+lines = {}
+say = (...) ->
+  parts = {"Knockback"}
+  for index = 1, select "#", ...
+    parts[#parts + 1] = tostring (select index, ...)
+  line = table.concat parts, " "
+  print line
+  lines[#lines + 1] = line
+save = ->
+  PreloadGenClear!
+  PreloadGenStart!
+  for line in *lines
+    Preload (line\gsub "\"", "'")
+  PreloadGenEnd "moonwell-systems-knockback.pld"
+  PreloadGenClear!
+round = (value) ->
+  text = string.format "%.1f", value
+  text == "-0.0" and "0.0" or text
+
+knockbackGate = (owner) ->
+  clock = Scheduler.new!
+  clock\start!
+  knockbacks = Knockbacks.new clock
+  throughTrees = Knockbacks.new clock, pathing: "terrain"
+  -- Pushes a unit, and prints why the push ended and how far the unit moved.
+  push = (system, number, label, unit, request) ->
+    startX, startY = unit\getX!, unit\getY!
+    request.onEnd = (_, reason) ->
+      say number, label, reason, "moved", round(unit\getX! - startX), round(unit\getY! - startY)
+    system\apply unit, request
+  -- One step: a fresh footman at the same spot, the announcement, the push a second later, and the footman is gone
+  -- before the next step. `walking` leaves the footman unpaused and walking east from the announcement on.
+  step = (at, number, text, walking, run) ->
+    clock\after at, ->
+      unit = Unit.create owner, FOOTMAN, START_X, 0, 0
+      if walking
+        unit\issuePointOrder "move", 600, 0
+      else
+        unit\pause true
+      say number, "next:", text
+      clock\after 1, -> run unit
+      clock\after 2.8, -> unit\remove!
+
+  step 1, 1, "the footman slides east and slows to a stop", false, (unit) ->
+    push knockbacks, 1, "slide", unit, angle: 0, distance: 300, duration: 0.8, falloff: "linear"
+
+  -- The tree stands for steps 2 and 3 only.
+  clock\after 3.9, ->
+    tree = Destructable.create TREE, 0, 0, 270, 1, 0
+    clock\after 6, -> tree\remove!
+
+  step 4, 2, "a tree is in the way: the footman is pushed at it and stops in front of it", false, (unit) ->
+    push knockbacks, 2, "into the tree", unit, angle: 0, distance: 400, duration: 0.8
+
+  step 7, 3, "with terrain pathing the same push slides the footman through the tree", false, (unit) ->
+    push throughTrees, 3, "through the tree", unit, angle: 0, distance: 400, duration: 0.8
+
+  step 10, 4, "a push east is replaced at once by a push north: the footman only moves north", false, (unit) ->
+    push knockbacks, 4, "first push", unit, angle: 0, distance: 300, duration: 1
+    push knockbacks, 4, "second push", unit, angle: math.pi / 2, distance: 100, duration: 0.5
+
+  step 13, 5, "the footman walks east; a push north moves it sideways, and it keeps walking east", true, (unit) ->
+    push knockbacks, 5, "walker", unit, angle: math.pi / 2, distance: 150, duration: 0.5
+    clock\after 0.6, -> say 5, "the walker keeps its move order", unit\getCurrentOrder! == MOVE
+
+  -- 6. Speed: 100 knockbacks, timed over 320 steps of a clock of their own.
+  clock\after 16, ->
+    bench = Scheduler.new!
+    herd = for index = 0, 99
+      unit = Unit.create owner, FOOTMAN, 1700 + (index % 10) * 40, 1300 + math.floor(index / 10) * 40, 0
+      unit\pause true
+      unit
+    pushed = Knockbacks.new bench
+    for unit in *herd
+      pushed\apply unit, angle: 0, distance: 60, duration: 15
+    started = os.clock!
+    for _ = 1, 320
+      bench\advance!
+    say "6 knockbacks:", string.format("%.3f", (os.clock! - started) * 1000 / 320), "ms per step; active",
+      pushed\getCount!
+    pushed\dispose!
+    for unit in *herd
+      unit\remove!
+    bench\dispose!
+
+  clock\after 17.5, ->
+    knockbacks\dispose!
+    throughTrees\dispose!
+    clock\dispose!
+    say "gate done"
+    save!
+  say "gate started"
+
+mw.on_main ->
+  start = Timer.create!
+  start\start 0, false, (self) ->
+    self\destroy!
+    SetCameraPosition 0, 0
+    knockbackGate Player.fromIndex 0

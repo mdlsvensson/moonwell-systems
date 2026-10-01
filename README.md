@@ -312,7 +312,8 @@ The request is a table: `x`, `y`, `height` (above the ground, default 60), `vx`,
   the missile at its `height` over hills instead. `terrain = false` makes the ground flat at 0 and samples nothing.
 - **The effect** (`model`, or an `effect` you hand over) is moved, turned along the travel unless `face = false`, and
   destroyed when the missile ends.
-- **Targets larger than `maxTargetRadius`** are hit as if they had that radius: the search around the path uses it.
+- **Targets larger than `maxTargetRadius`** are hit as if they had that radius: the search around the path uses it
+  (`GroupEnumUnitsInRange` finds units by their origins). A smaller value makes steps among many units cheaper.
 - **Callbacks** may dispose any missile or the system. A failing `steer`, `filter` or `onHit` ends that missile with
   `error` and is reported; the others still move.
 - The system ticks from its scheduler only while missiles are in flight.
@@ -360,6 +361,9 @@ ends with `completed`, `replaced`, `interrupted`, `invalid`, `blocked`, `dispose
   Flying units skip the `"obstacles"` and `"terrain"` checks.
 - **No policy moves a unit outside the world bounds:** that can crash the game.
 - A unit pushed into an obstacle under `"terrain"` or `"none"` is not stuck: it can walk out (measured).
+- **Cost** per knockback and step, measured on 3.0.0.24268: about 3 µs with `"none"`, 4 µs with `"terrain"` and
+  27 µs with `"obstacles"`, whose item placement is the expensive part. A map that pushes a hundred units at once
+  spends 2.7 ms of each 31 ms step on `"obstacles"`; `"terrain"` is the cheap choice where trees do not matter.
 
 ```yue
 import "systems.knockback" as Knockbacks
