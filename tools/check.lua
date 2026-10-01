@@ -22,6 +22,8 @@ for _, name in ipairs(dofile('tests/suites.lua')) do listed[name] = true end
 local helpers = {run = true, suites = true, support = true}
 for _, file in ipairs(Lib.files('tests', '.lua')) do
     local name = file:match('^tests/([a-z]+)%.lua$')
-    if name and not helpers[name] and not listed[name] then error('suite not listed in tests/suites.lua: ' .. name, 0) end
+    if name and not helpers[name] and not listed[name] then
+        error('suite not listed in tests/suites.lua: ' .. name, 0)
+    end
 end
 print('Lua 5.3.6 syntax: ' .. count .. ' files passed; Lua 5.4-only syntax rejected; every suite listed')

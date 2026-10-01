@@ -1,5 +1,6 @@
 ---The callback boundary (spec 2026-09-30 moonwell-systems §4.3): a copy of the wrappers' one, so no library reaches
----into another's internals. Nothing is rethrown: an error rethrown inside a timer or trigger callback is silent in game.
+---into another's internals. Nothing is rethrown: an error rethrown inside a timer or trigger callback is silent in
+---game.
 local Callback = {}
 
 ---@param value unknown

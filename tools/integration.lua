@@ -38,7 +38,8 @@ end
 local function clean(report, label)
     for file, diagnostics in pairs(report) do
         if #diagnostics > 0 then
-            error(label .. ' diagnostics in ' .. file .. ': ' .. diagnostics[1].code .. ' ' .. diagnostics[1].message, 0)
+            local first = diagnostics[1]
+            error(label .. ' diagnostics in ' .. file .. ': ' .. first.code .. ' ' .. first.message, 0)
         end
     end
 end
