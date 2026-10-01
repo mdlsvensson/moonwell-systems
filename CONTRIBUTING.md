@@ -60,6 +60,26 @@ the left, with footmen above, below and to the upper right, and one far to the r
 12. At 12.5 s: `Systems passive buff removed: disposed`, then `Systems release 2 done`. No `[systems] … failed` line
     prints in release 2.
 
+Release 3 (v0.3.0) has its own run, `deno task gate systems-damage`, about 10 seconds. A paladin stands on the left;
+above the centre your footman faces a hostile footman; a hostile Spell Breaker stands below. All four are paused.
+`Damage gate started` prints first. A hit prints as
+`Damage <metadata>: <source> via <dealer> -> <target> <initial> > <before armor> > <after armor> > <final> attack <b>`.
+
+13. At 1 s: `Damage baseline: Footman via Footman -> Footman 100.0 > 100.0 > <X> > <X> attack false`, then
+    `Damage step 1 life lost <X>` (100 reduced by armor; record X).
+14. At 2 s: `Damage crit: … 100.0 > 200.0 > <2X> > 50.0 attack false`, then `Damage step 2 life lost 50.0`.
+15. At 3 s: `Damage step 3 life lost 0.0`. Record whether a `Damage cancel: … 100.0 > 0.0 > 0.0 > 0.0` line prints
+    before it (whether Warcraft sends DAMAGED for a zero amount).
+16. At 4 s: `Damage step 4 dummy cast accepted true`; a Storm Bolt hits the hostile footman and
+    `Damage native: Paladin via Dummy -> Footman …` prints (record the amounts).
+17. At 5 s: `Damage chain: follow-up queued`, then the `Damage chain: …` line, then
+    `Damage follow-up: … 5.0 > 5.0 > …`, then `Damage step 5 life lost <n>` (both hits).
+18. At 6 s: `Damage step 6 life lost <n>` for the Spell Breaker. Record n, and whether
+    `Damage immune: before armor ran, amount 100.0` and a `Damage immune: …` hit line print.
+19. At 7 s: `Damage step 7 attack ordered true`; your footman attacks, and one
+    `Damage native: Footman via Footman -> Footman … attack true` line prints.
+20. At 9 s: `Damage gate done`, and no line after it. No `[systems] … failed` line prints in the run.
+
 v0.1.0: passed 2026-09-30, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build). Every message
 printed as listed: the reference timer read 0.5000038, 1.000004, 1.500004 and 2.000004 s for the four half-second
 runs; the failing task printed once (`war3map.lua:1822`); the footman disappeared at 3 s; the tick stayed at 128 after
@@ -75,8 +95,9 @@ life lost; the buff went `1 -> 2`, ticked at 2.5, 1.5 and 0.5 s remaining and ex
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the
 gate, update the README Status and the tags in its configuration, tag the verified commit `vX.Y.Z`, push the tag and
 create a GitHub pre-release. Then, in a fresh Moonwell map with both libraries from GitHub (the README configuration)
-and `examples/gate.yue` as `src/main.yue`: check, build and build `--minify`; `moonwell.lock` must record both tags'
-commits; remove the map's `.moonwell/`, check again, and the lock must stay unchanged. Record it here.
+and each gate example (`examples/gate.yue`, `examples/gate-damage.yue`) in turn as `src/main.yue`: check, build and
+build `--minify`; `moonwell.lock` must record both tags' commits; remove the map's `.moonwell/`, check again, and the
+lock must stay unchanged. Record it here.
 
 v0.1.0: passed 2026-09-30 with Moonwell 0.5.2 (`main`) and moonwell-wrappers `v0.7.0`, in a map made fresh with
 `init --link`: check, normal and minified builds of the gate example; `moonwell.lock` recorded systems commit

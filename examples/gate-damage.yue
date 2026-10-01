@@ -1,0 +1,79 @@
+-- The moonwell-systems damage gate (release 3). Built by the gate map's `systems-damage` run (../wrappers-gate,
+-- deno task gate systems-damage); CONTRIBUTING lists every expected message. It starts just after the map loads.
+-- The dummy type e000 comes from the map's object data (README, "The dummy unit type").
+import "moonwell" as mw
+import "moonwell.macros" as {:$FourCC}
+import "wrappers.player" as Player
+import "wrappers.unit" as Unit
+import "wrappers.timer" as Timer
+import "systems.scheduler" as Scheduler
+import "systems.dummy" as Dummies
+import "systems.damage" as DamageSystem
+
+nameOf = (unit) -> if unit then unit\getName! else "nobody"
+
+damageGate = (owner) ->
+  clock = Scheduler.new!
+  clock\start!
+  hostile = Player.fromIndex 12
+  hero = Unit.create owner, $FourCC("Hpal"), -300, 0, 0
+  attacker = Unit.create owner, $FourCC("hfoo"), -150, 150, 0
+  victim = Unit.create hostile, $FourCC("hfoo"), 0, 150, 180
+  breaker = Unit.create hostile, $FourCC("hspt"), 0, -150, 180
+  -- Paused units do not fight on their own, so every hit in the log is one the gate caused.
+  for unit in *{hero, attacker, victim, breaker}
+    unit\pause true
+  victim\setMaxLife 2000
+  victim\setLife 2000
+  dummies = Dummies.new clock
+  damage = DamageSystem.new sourceOf: dummies\sourceOf
+  damage\beforeArmor (hit) ->
+    if hit.metadata == "crit"
+      hit\setAmount hit.amount * 2
+    elseif hit.metadata == "cancel"
+      hit\cancel!
+    elseif hit.metadata == "chain"
+      damage\deal source: attacker, target: victim, amount: 5, metadata: "follow-up"
+      print "Damage chain: follow-up queued"
+    elseif hit.metadata == "immune"
+      print "Damage immune: before armor ran, amount", hit.amount
+  damage\afterArmor (hit) ->
+    hit\setAmount math.min hit.amount, 50 if hit.metadata == "crit"
+  damage\observe (hit) ->
+    print "Damage #{hit.metadata or 'native'}:", nameOf(hit.source), "via", nameOf(hit.dealer), "->",
+      nameOf(hit.target), hit.initialAmount, ">", hit.beforeArmorAmount, ">", hit.armorAmount, ">", hit.amount,
+      "attack", hit.isAttack
+    attacker\pause true if hit.isAttack
+  damage\start!
+  strike = (number, request) ->
+    before = request.target\getLife!
+    damage\deal request
+    print "Damage step #{number} life lost", before - request.target\getLife!
+  clock\after 1, -> strike 1, source: attacker, target: victim, amount: 100, metadata: "baseline"
+  clock\after 2, -> strike 2, source: attacker, target: victim, amount: 100, metadata: "crit"
+  clock\after 3, -> strike 3, source: attacker, target: victim, amount: 100, metadata: "cancel"
+  clock\after 4, ->
+    lease = dummies\cast
+      owner: owner, typeId: $FourCC("e000"), x: -300, y: 0, ability: $FourCC("AHtb"), order: "thunderbolt"
+      target: victim, duration: 2, source: hero
+    print "Damage step 4 dummy cast accepted", lease\isOrderAccepted!
+  clock\after 5, -> strike 5, source: attacker, target: victim, amount: 100, metadata: "chain"
+  clock\after 6, ->
+    strike 6, source: attacker, target: breaker, amount: 100, damageType: DAMAGE_TYPE_MAGIC, metadata: "immune"
+  clock\after 7, ->
+    attacker\pause false
+    print "Damage step 7 attack ordered", attacker\issueTargetOrder "attack", victim
+  clock\after 9, ->
+    damage\dispose!
+    attacker\pause true
+    attacker\damageTarget victim, 10, false, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS
+    dummies\dispose!
+    clock\dispose!
+    print "Damage gate done"
+  print "Damage gate started"
+
+mw.on_main ->
+  start = Timer.create!
+  start\start 0, false, (self) ->
+    self\destroy!
+    damageGate Player.fromIndex 0

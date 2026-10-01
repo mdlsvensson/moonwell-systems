@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Release 3 of the wc3-lib port (spec `2026-10-01-moonwell-systems-release-3-design` in the Moonwell repository).
+
+- `systems.damage`: listeners before armor, after armor and once the final amount is known, on `wrappers.damage`. A
+  hit changes through setter methods that raise at the listener's line. `deal` queues script damage so it never nests,
+  and carries `metadata`. `sourceOf` credits a hit to another Unit, for example a dummy's damage to its caster.
+- `Callback.report` in `systems.internal.callback`.
+- The blame sweep also covers the classes a module exposes (`DamageSystem.Hit`).
+
 ## 0.2.0 (2026-10-01)
 
 Release 2 of the wc3-lib port (spec `2026-09-30-moonwell-systems-release-2-design` in the Moonwell repository).

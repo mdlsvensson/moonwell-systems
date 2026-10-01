@@ -7,8 +7,8 @@ The remote is `mdlsvensson/moonwell-systems` (HTTPS). Tags are immutable GitHub 
 
 The design lives in the sibling Moonwell repository: `../moonwell/docs/superpowers/specs/2026-09-30-moonwell-systems-design.md`
 (Part 1 binds every release; each release has its own spec and plan in `../moonwell/docs/superpowers/`). Release 1
-(v0.1.0): scheduler, signal, scope, time. Release 2 (v0.2.0): buffs, aura, dummy, on `internal/ordered.lua`. Releases 3
-to 5: damage; physics; persistence.
+(v0.1.0): scheduler, signal, scope, time. Release 2 (v0.2.0): buffs, aura, dummy, on `internal/ordered.lua`. Release 3
+(v0.3.0): damage. Releases 4 and 5: physics; persistence.
 
 ## Rules (spec §4)
 
@@ -37,8 +37,9 @@ Environment: `MOONWELL_WRAPPERS`, `MOONWELL_CLI`, `MOONWELL_YUE`, `MOONWELL_LUAL
 ## Process
 
 Spec, then a plan of test-first tasks, then implementation task by task; the maintainer approves each spec. Commit on
-`main`, staging explicit paths. The maintainer runs the in-game gate (`deno task gate systems` in `../wrappers-gate`);
-then tag, pre-release and tag consumption with both libraries.
+`main`, staging explicit paths. The maintainer runs the in-game gate in `../wrappers-gate` (`deno task gate systems`
+for releases 1 and 2, `deno task gate systems-damage` for release 3); then tag, pre-release and tag consumption with
+both libraries.
 
 ## Pitfalls
 
@@ -52,3 +53,6 @@ then tag, pre-release and tag consumption with both libraries.
   a callback's last expression, and a `fun()` parameter makes LuaLS flag that.
 - An object's field must never share a name with one of its methods (the ordered map's key array is `order`, not
   `keys`): the field would hide the method.
+- LuaLS's `--check` mangles a project path that contains `--` (it reads it as an option): keep work folders out of
+  such paths.
+- LuaLS reports `need-check-nil` for a nil-able local, not for a chained call (`a:b().c`): assign the result first.

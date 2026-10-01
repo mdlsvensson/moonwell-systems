@@ -1,9 +1,10 @@
 # Moonwell Systems
 
 Opt-in Warcraft III systems for [Moonwell](https://github.com/mdlsvensson/moonwell) maps, ported from `wc3-lib`: a
-deterministic scheduler, signals, ownership scopes, time helpers, script buffs, auras and dummy casters today; damage,
-physics and save codes in later releases. Annotated Lua 5.3, built on [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers),
-with editor completion for YueScript and Lua maps.
+deterministic scheduler, signals, ownership scopes, time helpers, script buffs, auras, dummy casters and a damage
+pipeline today; physics and save codes in later releases. Annotated Lua 5.3, built on
+[moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers), with editor completion for YueScript and Lua
+maps.
 
 **Status:** `v0.2.0` (2026-10-01): `systems.buffs`, `systems.aura` and `systems.dummy` join `systems.scheduler`,
 `systems.signal`, `systems.scope` and `systems.time`. It needs
@@ -213,6 +214,48 @@ units {
 }
 ```
 
+### `systems.damage`
+
+- `DamageSystem.new({sourceOf?, onError?, maxQueue = 128, maxChain = 64, maxPending = 64})`
+- `start()`; `beforeArmor(callback, priority = 0)`, `afterArmor(callback, priority = 0)` and
+  `observe(callback, priority = 0)`: each returns a remove function; lower priority runs first
+- `deal(request)`, `getCurrent()`, `dispose()`
+- a hit, to read: `source`, `dealer`, `target`, `amount`, `isAttack`, `attackType`, `damageType`, `weaponType`,
+  `metadata`, `phase`, `initialAmount`, `beforeArmorAmount`, `armorAmount`, `cancelled`, `paired`
+- a hit, to change: `setAmount(n)`, `cancel()`, `setAttackType(t)`, `setDamageType(t)`, `setWeaponType(t)`; and
+  `isLethal()`
+
+Every hit in the map runs three phases: the `beforeArmor` listeners (the amount and the types can change), the
+`afterArmor` listeners (the amount can change) and the observers (nothing can change). A listener gets the hit. Its
+fields are for reading; change it with its methods. A setter raises at your line when its phase has passed, when an
+observer calls it, or when the hit is not the one being handled. A cancelled hit stays at 0.
+
+`deal` takes a table: `source`, `target`, `amount`, and optionally `attack`, `ranged`, `attackType`, `damageType`,
+`weaponType` and `metadata`. Outside damage events it runs at once. Inside a listener it is queued and runs after the
+current hit, first in first out, so script damage never nests. Only the hit that `deal` causes carries its `metadata`.
+A listener that answers every hit with another `deal` is stopped after `maxChain` deals, and a full queue raises at the
+`deal` line.
+
+`sourceOf(dealer)` credits a hit to another Unit: `hit.source` is its answer (or the dealer), and `hit.dealer` is the
+unit the game reported. With `sourceOf: dummies\sourceOf`, a dummy's damage counts for its real caster while the
+dummy's lease lasts.
+
+- `hit.source` and `hit.dealer` are nil when the game gives no source.
+- `isAttack` is the game's value: false for script damage, even with `attack: true`.
+- A hit whose DAMAGED event never comes gets no `afterArmor` or observer call.
+- To react to one unit's hits, look `hit.target` up in your own table inside one listener.
+
+```yue
+import "systems.damage" as DamageSystem
+
+damage = DamageSystem.new sourceOf: dummies\sourceOf
+damage\beforeArmor (hit) -> hit\setAmount hit.amount * 2 if hit.metadata == "crit"
+damage\afterArmor (hit) -> hit\cancel! if shields[hit.target]
+damage\observe (hit) -> print hit.amount
+damage\start!
+damage\deal source: hero, target: enemy, amount: 50, metadata: "crit"
+```
+
 ## Changes from wc3-lib
 
 - Failures are printed or passed to `onError`, never rethrown (wc3-lib rethrew task and release errors).
@@ -227,3 +270,9 @@ units {
 - A failing buff callback ends the buff with `error` and is reported, not rethrown.
 - Aura members keep the query's order; nothing is sorted by handle id, which can differ between machines.
 - Dummy orders may be order ids, and a dummy that cannot get its ability raises at the `cast` line.
+- The damage system has no port: `DamageSystem.new` is the Warcraft system, and a `deal` request is one flat table.
+- A hit changes through setter methods, which raise at the listener's line; observers get the hit itself, and its
+  setters raise there. `invalid-amount` is gone.
+- `sourceOf`, `hit.dealer` and hits with no source are new (wc3-lib dropped hits without a source).
+- Only failures are reported: a missing or unpaired DAMAGED event and a rejected native call are silent. A full queue
+  raises instead of returning false, and `deal` returns nothing.
