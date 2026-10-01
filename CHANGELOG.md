@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-10-01)
 
 Release 5 of the wc3-lib port, the last (spec `2026-10-01-moonwell-systems-release-5-design` in the Moonwell
 repository).
@@ -13,6 +13,34 @@ repository).
   inside the library.
 - A save file is carried by the tooltips of borrowed standard abilities, which are restored at once; nothing creates
   a handle on one machine only.
+
+This completes the port of wc3-lib.
+
+### Release gate
+
+Automated checks passed 2026-10-01 on Windows: 21 suites (185 tests) with YueScript 0.34.2; Lua 5.3.6 syntax (51
+files); Moonwell normal and minified builds; LuaLS 3.19.1 fixtures (26 expected negative diagnostics) and `src/systems`
+against Moonwell's native declarations; all 15 entry points bundle only what they import (`systems.codec` bundles no
+wrappers module); the five gate examples with clean editor diagnostics. The codec's fixed codes match a second
+implementation written from the spec's layout, and 92 mutations of the new modules are each caught by a test.
+
+In-game gate, 2026-10-01, Warcraft III 3.0.0.24268, `deno task gate systems-save`, normal build, one machine:
+
+- **Parity:** three fixed sets of data encoded to the codes the test suite expects, from the game's 32-bit integers,
+  and a decoded value at the edge of the range (2147483647) was an integer.
+- **Round trip:** `save`, then `load`, gave the same data, through the file and through sync.
+- A slot that was never saved gave `missing`; a file that holds no code `damaged`; a code with one symbol changed,
+  and a code decoded with another name, `checksum`.
+- **The largest save,** 8189 symbols in 44 tooltips and 38 sync packets, came back whole: saving took 10 ms,
+  reading and sending 64 ms, and the answer arrived 0.07 s after the call.
+- **A migration:** a version 1 file loaded as version 2 data.
+- **`ask`:** the local clock arrived, and a slot without a human gave `absent`.
+- Every borrowed tooltip read afterwards as it did before, and no failure line printed.
+
+Three probes came before the design (`../wrappers-gate/PROBE-PRELOAD-RESULTS.md`): Lua cannot be run from a Preload
+file on this version; a game cache carries text but makes a handle on every line; a file whose JASS names a global of
+blizzard.j crashes the game; tooltips make no handles, one chunk per ability field. Two machines are not part of
+this gate: the online checks before Moonwell 1.0 cover them.
 
 ## 0.4.0 (2026-10-01)
 

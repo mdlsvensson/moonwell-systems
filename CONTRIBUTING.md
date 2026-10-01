@@ -171,6 +171,13 @@ listed: 300.0; blocked after 234.4; 400.0 through the tree; replaced, then 100.0
 step for the missiles; the loop was changed after a probe (`../wrappers-gate/PROBE-MISSILE-PERF-RESULTS.md`), and the
 gate was run again.
 
+v0.5.0: passed 2026-10-01, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build,
+`deno task gate systems-save`, one machine). Steps 37 to 46 printed as listed: parity true for all three codes; the
+round trip gave `gold 500 hero Hpal hardMode true items 1227894832,1227894833,2147483647`; `missing`, `damaged` and
+`checksum` twice; the largest save came back whole (saving 10 ms, reading and sending 64 ms, arrived after 0.07 s);
+`coins 400`; `absent`, then the local clock; the tooltips unchanged; and the five files in `moonwell-gate\`, of which
+`big.pld` has 44 lines.
+
 ## Publication and tag gate (maintainer)
 
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the
