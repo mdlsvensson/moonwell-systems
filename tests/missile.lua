@@ -1,16 +1,22 @@
 -- The world: units (raw handles are tables), a ground function and the effects created.
-local world, effects, queries = {}, {}, {}
+local world, effects, queries, ranges = {}, {}, {}, {}
 local ground = function() return 0 end
 
 native('CreateGroup', function() return {units = {}} end)
 native('DestroyGroup', function() end)
 native('GroupClear', function(group) group.units = {} end)
+-- As measured in game: the enumeration tests unit origins, and clears the group first.
 native('GroupEnumUnitsInRange', function(group, x, y, radius)
     queries[#queries + 1] = {x = x, y = y, radius = radius}
     group.units = {}
     for _, unit in ipairs(world) do
         if (unit.x - x) ^ 2 + (unit.y - y) ^ 2 <= radius ^ 2 then group.units[#group.units + 1] = unit end
     end
+end)
+-- As measured in game: true up to the range plus the unit's collision size.
+native('IsUnitInRangeXY', function(unit, x, y, range)
+    ranges[#ranges + 1] = {x = x, y = y, range = range}
+    return math.sqrt((unit.x - x) ^ 2 + (unit.y - y) ^ 2) <= range + unit.size
 end)
 native('BlzGroupGetSize', function(group) return #group.units end)
 native('BlzGroupUnitAt', function(group, index) return group.units[index + 1] end)
@@ -45,7 +51,7 @@ eq(totalCalls(), 0)
 -- Every test starts with setup(): an empty flat world, a clock with the given step, and a system whose targets have
 -- their centre at their feet and a radius cap of 16, so coordinates read as in the tests' comments.
 local function setup(step, options)
-    world, effects, queries = {}, {}, {}
+    world, effects, queries, ranges = {}, {}, {}, {}
     ground = function() return 0 end
     local clock = Scheduler.new(step or 1)
     local merged = {targetOffset = 0, maxTargetRadius = 16}
@@ -304,13 +310,40 @@ test('the query covers the segment and the radii, with one reused group', functi
     target('enumerated, but out of reach', 50, 60)
     system:launch(shot({radius = 2, lifetime = 2}))
     clock:advance()
+    -- Units are enumerated by their origins: half the step, the missile's radius and the largest target radius.
     eq(queries[1].x, 50.0); eq(queries[1].y, 0.0); eq(queries[1].radius, 68.0)
-    -- The unit fails the flat test, so nothing more is read from it.
-    eq(callCount('GetUnitX'), 1); eq(callCount('BlzGetUnitCollisionSize'), 0); eq(callCount('UnitAlive'), 0)
+    -- One native rules the unit out: the step's midpoint, half the step and the missile's radius.
+    eq(#ranges, 1); eq(ranges[1].x, 50.0); eq(ranges[1].y, 0.0); eq(ranges[1].range, 52.0)
+    eq(callCount('GetUnitX'), 0); eq(callCount('BlzGetUnitCollisionSize'), 0); eq(callCount('UnitAlive'), 0)
+    eq(callCount('GetLocationZ'), 2) -- the launch and the landing check: nothing for the unit
     clock:advance()
-    eq(callCount('CreateGroup'), 1); eq(callCount('GroupClear'), 2)
+    -- The next enumeration clears the group itself.
+    eq(callCount('CreateGroup'), 1); eq(callCount('GroupClear'), 0)
     system:dispose(); system:dispose()
     eq(callCount('DestroyGroup'), 1)
+end)
+
+test('the cheap test never rules out a unit the step touches', function()
+    -- Just past the step's end: the missile's radius reaches it from x = 99.5.
+    local system, clock = setup()
+    target('past the end', 101.5)
+    local hits = {}
+    local missile = system:launch(shot({onHit = recorder(hits)}))
+    clock:advance()
+    eq(join(hits), 'past the end'); eq((missile:getPosition()), 99.5)
+    -- Beside the middle of the step: it passes the cheap test, and the sphere test refuses it.
+    system, clock = setup()
+    target('beside', 50, 40)
+    hits = {}
+    system:launch(shot({onHit = recorder(hits)}))
+    clock:advance()
+    eq(join(hits), ''); eq(callCount('GetUnitX'), 1); eq(callCount('BlzGetUnitCollisionSize'), 1)
+    -- A unit already hit is enumerated again in the next step, and not asked again.
+    system, clock = setup()
+    target('pierced', 30)
+    system:launch(shot({vx = 40, maxHits = 2}))
+    clock:advance(); clock:advance()
+    eq(#queries, 2); eq(#ranges, 1)
 end)
 
 test('a hit callback may dispose the missile: the dispatch stops and the effect is destroyed once', function()

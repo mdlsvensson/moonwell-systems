@@ -196,35 +196,37 @@ local function advance(system, missile, dt)
     end
     local radius, cap = missile.radius, system.maxTargetRadius
     local dx, dy = tx - fx, ty - fy
+    -- A unit the step touches is within half the step, the missile's radius and its own radius of the step's
+    -- midpoint. The enumeration tests unit origins, so it reaches the largest target radius; it clears the group
+    -- first, so the group is never cleared here (both measured on 3.0.0.24268).
+    local mx, my, reach = (fx + tx) / 2, (fy + ty) / 2, sqrt(dx * dx + dy * dy) / 2 + radius
     -- Warcraft accepts a null filter; the generated JASS signature cannot express that.
     ---@diagnostic disable-next-line: param-type-mismatch
-    GroupEnumUnitsInRange(group, (fx + tx) / 2, (fy + ty) / 2, sqrt(dx * dx + dy * dy) / 2 + radius + cap, nil)
+    GroupEnumUnitsInRange(group, mx, my, reach + cap, nil)
     local units, fractions, hits, offset = system.units, system.fractions, missile.hits, system.targetOffset
     local contacts = 0
     for index = 0, BlzGroupGetSize(group) - 1 do
         local unit = BlzGroupUnitAt(group, index)
-        if not hits[unit] then
+        -- One native rules out most units, which then need no other: IsUnitInRangeXY is true up to the range plus
+        -- the unit's collision size (measured).
+        if not hits[unit] and IsUnitInRangeXY(unit, mx, my, reach) then
             local ux, uy = GetUnitX(unit), GetUnitY(unit)
-            -- A flat test with the largest radius first: most units fail it, and need no further native.
-            if segmentSphere(fx, fy, 0, tx, ty, 0, ux, uy, 0, radius + cap) then
-                local size = BlzGetUnitCollisionSize(unit)
-                if size > cap then size = cap end
-                local uz = (ground and height(ground, ux, uy) or 0) + GetUnitFlyHeight(unit) + offset
-                local fraction = segmentSphere(fx, fy, fz, tx, ty, tz, ux, uy, uz, radius + size)
-                if fraction then
-                    -- Insertion sort by fraction; a tie keeps the enumeration order.
-                    local place = contacts
-                    while place > 0 and fractions[place] > fraction do
-                        units[place + 1], fractions[place + 1] = units[place], fractions[place]
-                        place = place - 1
-                    end
-                    units[place + 1], fractions[place + 1] = unit, fraction
-                    contacts = contacts + 1
+            local size = BlzGetUnitCollisionSize(unit)
+            if size > cap then size = cap end
+            local uz = (ground and height(ground, ux, uy) or 0) + GetUnitFlyHeight(unit) + offset
+            local fraction = segmentSphere(fx, fy, fz, tx, ty, tz, ux, uy, uz, radius + size)
+            if fraction then
+                -- Insertion sort by fraction; a tie keeps the enumeration order.
+                local place = contacts
+                while place > 0 and fractions[place] > fraction do
+                    units[place + 1], fractions[place + 1] = units[place], fractions[place]
+                    place = place - 1
                 end
+                units[place + 1], fractions[place + 1] = unit, fraction
+                contacts = contacts + 1
             end
         end
     end
-    GroupClear(group)
 
     local filter, onHit = missile.filter, missile.onHit
     for index = 1, contacts do
