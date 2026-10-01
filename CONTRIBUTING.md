@@ -122,6 +122,27 @@ step prints `Knockback <n> next: …` a second before its push. `Knockback gate 
     under 3; record it.
 36. At 17.5 s: `Knockback gate done`. No `[systems] … failed` line prints in the run.
 
+Release 5 (v0.5.0) has its own run, `deno task gate systems-save`, about 9 seconds. Nothing needs watching. Its lines
+also go to `Documents\Warcraft III\CustomMapData\moonwell-systems-save.pld`, and its save files to
+`CustomMapData\moonwell-gate\`. `Save gate started as <your name>` prints first.
+
+37. At once: `Save 1 parity: hero true edges true empty true` (the game's 32-bit integers give the codes the test
+    suite expects) and `Save 1 the edges decode: integer`.
+38. `Save 4 another binding: checksum`.
+39. At 1 s: `Save 2 round trip: gold 500 hero Hpal hardMode true items 1227894832,1227894833,2147483647`.
+40. At 2 s: `Save 3 a missing slot: nil missing`.
+41. At 3 s: `Save 5 a damaged file: nil damaged` and `Save 5 a changed symbol: nil checksum`.
+42. At 4 s: `Save 6 saving took <ms> ms, and reading and sending <ms> ms`, then
+    `Save 6 the largest save: true of 8189 symbols arrived after <s> s`. Record the three numbers.
+43. At 5.5 s: `Save 7 a migration: coins 400 nil`.
+44. At 6.5 s: `Save 8 ask a slot without a human: nil absent`, then
+    `Save 8 ask: the local clock arrived: true nil`.
+45. At 8 s: `Save 9 tooltips unchanged: true`, then `Save gate done`.
+46. No `[systems] … failed` line prints in the run, and `CustomMapData\moonwell-gate\` holds `slot1.pld`,
+    `damaged.pld`, `changed.pld`, `big.pld` and `old.pld`.
+
+Two machines are not part of this gate: the online checks before Moonwell 1.0 cover them.
+
 v0.1.0: passed 2026-09-30, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build). Every message
 printed as listed: the reference timer read 0.5000038, 1.000004, 1.500004 and 2.000004 s for the four half-second
 runs; the failing task printed once (`war3map.lua:1822`); the footman disappeared at 3 s; the tick stayed at 128 after
@@ -156,8 +177,9 @@ After the checks and the in-game gate pass: change the Unreleased changelog head
 gate, update the README Status and the tags in its configuration, tag the verified commit `vX.Y.Z`, push the tag and
 create a GitHub pre-release. Then, in a fresh Moonwell map with both libraries from GitHub (the README configuration)
 and each gate example (`examples/gate.yue`, `examples/gate-damage.yue`, `examples/gate-physics.yue`,
-`examples/gate-knockback.yue`) in turn as `src/main.yue`: check, build and build `--minify`; `moonwell.lock` must
-record both tags' commits; remove the map's `.moonwell/`, check again, and the lock must stay unchanged. Record it here.
+`examples/gate-knockback.yue`, `examples/gate-save.yue`) in turn as `src/main.yue`: check, build and build
+`--minify`; `moonwell.lock` must record both tags' commits; remove the map's `.moonwell/`, check again, and the
+lock must stay unchanged. Record it here.
 
 v0.1.0: passed 2026-09-30 with Moonwell 0.5.2 (`main`) and moonwell-wrappers `v0.7.0`, in a map made fresh with
 `init --link`: check, normal and minified builds of the gate example; `moonwell.lock` recorded systems commit

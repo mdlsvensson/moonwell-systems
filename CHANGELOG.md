@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+Release 5 of the wc3-lib port, the last (spec `2026-10-01-moonwell-systems-release-5-design` in the Moonwell
+repository).
+
+- `systems.codec`: save codes packed by a versioned schema into 64 symbols (integers by their range, booleans,
+  strings and lists), with a check value keyed by a map secret, a binding such as the player's name, and migrations.
+- `systems.sync`: `ask` one player's machine for a local value; the answer, or the reason there is none, reaches
+  every machine at the same moment.
+- `systems.savefile`: `save` and `load` a player's data in a local file. The steps that run on one machine only are
+  inside the library.
+- A save file is carried by the tooltips of borrowed standard abilities, which are restored at once; nothing creates
+  a handle on one machine only.
+
 ## 0.4.0 (2026-10-01)
 
 Release 4 of the wc3-lib port (spec `2026-10-01-moonwell-systems-release-4-design` in the Moonwell repository).

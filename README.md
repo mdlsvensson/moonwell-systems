@@ -2,7 +2,7 @@
 
 Opt-in Warcraft III systems for [Moonwell](https://github.com/mdlsvensson/moonwell) maps, ported from `wc3-lib`: a
 deterministic scheduler, signals, ownership scopes, time helpers, script buffs, auras, dummy casters, a damage
-pipeline, missiles and knockbacks today; save codes in a later release. Annotated Lua 5.3, built on
+pipeline, missiles, knockbacks and save files. Annotated Lua 5.3, built on
 [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers), with editor completion for YueScript and Lua
 maps.
 
@@ -374,6 +374,135 @@ angle = math.atan target\getY! - caster\getY!, target\getX! - caster\getX!
 knockbacks\apply target, angle: angle, distance: 300, duration: 0.4, falloff: "linear"
 ```
 
+### `systems.codec`
+
+- `Codec.new({version, secret, schemas})`
+- `encode(data, binding = "")` returns the code
+- `decode(code, binding = "")` returns the data, or `nil, reason, detail`
+- `getVersion()`, `getMaxLength()` (the longest code any of its schemas can produce)
+
+A code is data packed by a schema into 64 symbols (`A-Z a-z 0-9 - _`), ending in a check value. It is pure: the same
+on every machine, in the game and outside it.
+
+- **`schemas`** is a list of `{version, fields, migrate?}`, one per version the map still reads; `version` (1 to 9999)
+  is the one `encode` writes. `migrate(data)` returns the data of the next version, and a code of an older version
+  is migrated one version at a time.
+- **`fields`** (at most 64) each have a `key` and a `kind`:
+  - `"integer"` with `min` and `max`: a whole number in that range. Both lie within ±2,147,483,647, and `max - min`
+    is at most 2,147,483,647. It takes only the bits its range needs: gold from 0 to 1,000,000 takes 20.
+  - `"boolean"`: one bit.
+  - `"string"` with `maxLength` (at most 4095 bytes): any bytes, so names in any language fit.
+  - `"list"` with `maxLength` (at most 4095) and `of`, a field of one of the three kinds above without a `key`: an
+    array of that kind.
+- **Numbers are whole.** A map that wants 12.5 stores 125: the game's floats are single precision.
+- **`encode` raises** at your line when the data does not fit, and names the field:
+  `[systems] Codec.encode: field "gold": expected a whole number from 0 to 1000000`. A key the schema does not have
+  raises too.
+- **`decode` never raises for a bad code.** Its reasons: `format` (not a code), `checksum` (an edited code, another
+  secret or another binding), `version` (no schema for the code's version), `schema` (the bits do not fit that
+  version's schema: a schema changed without a new version) and `migration` (with the message as `detail`).
+- **`secret` and `binding`.** The check value mixes the map's secret, the binding (typically the player's name) and
+  the data, so a code cannot be edited, or handed to another player, without the secret. This is not cryptography:
+  the secret is in the map script, and whoever reads it can forge a save.
+- A codec's longest code is limited to 8,192 symbols; `Codec.new` raises for a schema that could pass it.
+
+```yue
+import "systems.codec" as Codec
+
+codec = Codec.new
+  version: 2
+  secret: "k3-vale-of-ash"
+  schemas: {
+    {
+      version: 1
+      fields: {{key: "gold", kind: "integer", min: 0, max: 1000000}}
+      migrate: (old) -> {gold: old.gold, hero: "", hardMode: false, items: {}}
+    }
+    {
+      version: 2
+      fields: {
+        {key: "gold", kind: "integer", min: 0, max: 1000000}
+        {key: "hero", kind: "string", maxLength: 16}
+        {key: "hardMode", kind: "boolean"}
+        {key: "items", kind: "list", maxLength: 6, of: {kind: "integer", min: 0, max: 2147483647}}
+      }
+    }
+  }
+
+code = codec\encode {gold: 500, hero: "Hpal", hardMode: true, items: {itemType}}, player\getName!
+data, reason = codec\decode code, player\getName!
+```
+
+### `systems.sync`
+
+- `Sync.new(clock, {prefix = "mwsync", timeout = 10, maxLength = 8192, onError?})`
+- `start()`, `ask(Player, read, receive)`, `dispose()`
+
+One player's machine knows something the others do not: a file on its disk, its clock. `ask` gets it to every
+machine safely.
+
+- **Call `ask` on every machine,** in the same order, like any other game code. Do not put it inside a
+  local-player check.
+- **`read()`** runs on that player's machine only, at once, and returns a string (no byte below 32) or nil.
+- **`receive(text, reason)`** runs on every machine at the same moment, later, never inside `ask`: with the text; or
+  with `nil` and `"none"` (read returned nil), `"error"` (read failed or returned something that cannot be sent),
+  `"absent"` (no human plays in that slot), `"timeout"` (no answer within `timeout` seconds of the scheduler, for
+  example because the player left) or `"disposed"`.
+- Only the asked player's packets are taken, and the sender is the one the game reports.
+- The text travels in packets of 220 bytes; a sync message keeps 255.
+
+```yue
+import "systems.sync" as Sync
+import "systems.time" as Time
+
+sync = Sync.new clock
+sync\start!
+sync\ask player, (-> tostring Time.localUtc!), (text, reason) ->
+  print player\getName!, "says the time is", text or reason
+```
+
+### `systems.savefile`
+
+- `Savefile.new(clock, {codec, folder, prefix = "mwsave", timeout = 10, abilities?, onError?})`
+- `start()`, `save(Player, slot, data)`, `load(Player, slot, callback)`, `dispose()`
+
+A player's data in a file on that player's own machine:
+`Documents\Warcraft III\CustomMapData\<folder>\<slot>.pld`. `folder` and `slot` are 1 to 32 letters, digits, `-`
+or `_`.
+
+- **Call `save` and `load` on every machine,** like any other game code. The steps that run on one machine only are
+  inside: you write no local-player check.
+- **`save`** encodes the data with the player's name as the binding, so data that does not fit raises on every
+  machine alike; only the player's own machine writes the file.
+- **`load`** asks the player's machine for the file (through `systems.sync`), decodes it, and calls
+  `callback(data, reason)` on every machine at the same moment. Without data, `reason` is `missing`, `damaged`, one
+  of the codec's (`format`, `checksum`, `version`, `schema`, `migration`) or one of the sync system's (`error`,
+  `absent`, `timeout`, `disposed`).
+- **Borrowed tooltips.** A file is JASS that the game runs, and it hands its text to Lua through the tooltip and
+  the extended tooltip of standard unit abilities: 24 by default, enough for the longest code. Each is changed only
+  while the file is read, on that one machine, and restored before `load` returns. `start()` checks that each can
+  carry text. `abilities` replaces the list (ability ids). No handle is created.
+- **A file edited by hand can crash that player's game** when it is read: the game runs it. The library writes only
+  the codec's 64 symbols, in lines the game keeps whole.
+- **Reading freezes that player's game for 40 to 80 ms.** Load at a quiet moment.
+- **Two machines are untested:** everything was measured on one. The two-player checks wait for the online step
+  before Moonwell 1.0.
+
+```yue
+import "systems.savefile" as Savefile
+
+saves = Savefile.new clock, codec: codec, folder: "ValeOfAsh"
+saves\start!
+
+saves\save player, "slot1", {gold: 500, hero: "Hpal", hardMode: true, items: {itemType}}
+
+saves\load player, "slot1", (data, reason) ->
+  if data
+    player\setGold data.gold
+  else
+    print player\getName!, "has no save:", reason
+```
+
 ## Changes from wc3-lib
 
 - Failures are printed or passed to `onError`, never rethrown (wc3-lib rethrew task and release errors).
@@ -402,3 +531,12 @@ knockbacks\apply target, angle: angle, distance: 300, duration: 0.4, falloff: "l
   new; contact ties follow the enumeration order, not handle ids.
 - A knockback takes an angle and a distance (`knockbackVelocity` is gone). Pathing has a default that sees trees and
   buildings, and no policy leaves the world bounds.
+- Save codes are packed as bits in 64 symbols, about a third as long as wc3-lib's hex text. Fields are `integer`,
+  `boolean`, `string` and `list`; non-integer numbers are gone, and strings hold any bytes.
+- The check value is keyed with a map secret. `encode` raises for data that does not fit instead of returning a
+  failure, and `decode` returns `nil, reason`.
+- The local store has no port and is not public: `Savefile` owns it. It carries one chunk per ability field,
+  because wc3-lib's appended tooltip read back only its first chunk in game.
+- `SyncReceiver`, `WarcraftSyncTransport`, sessions and `expect` are one call, `sync:ask`, which also answers for a
+  missing value, an absent player and a timeout.
+- A map writes no local-player check to save or load.

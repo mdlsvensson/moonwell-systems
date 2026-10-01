@@ -1,0 +1,170 @@
+-- The moonwell-systems persistence gate (release 5). Built by the gate map's `systems-save` run (../wrappers-gate,
+-- deno task gate systems-save); CONTRIBUTING lists every expected message. Nothing needs watching: it starts just
+-- after the map loads, and also writes its lines to CustomMapData\moonwell-systems-save.pld. Its save files go to
+-- CustomMapData\moonwell-gate\.
+import "moonwell" as mw
+import "wrappers.player" as Player
+import "wrappers.timer" as Timer
+import "systems.scheduler" as Scheduler
+import "systems.time" as Time
+import "systems.codec" as Codec
+import "systems.sync" as Sync
+import "systems.savefile" as Savefile
+import "systems.internal.preload" as Files
+
+SECRET = "k3-vale-of-ash"
+MAX = 2147483647
+FOLDER = "moonwell-gate"
+-- The abilities a Savefile borrows by default.
+ABILITIES = [FourCC(code) for code in *{
+  "Amls", "Aroc", "Amic", "Amil", "Aclf", "Acmg", "Adef", "Adis", "Afbt", "Afbk", "Aflk", "Agyb", "Agyv", "Ahea"
+  "Ainf", "Aivs", "Amdf", "Aply", "Asth", "Aslo", "Asps", "Afsh", "Absk", "Ablo"
+}]
+
+lines = {}
+say = (...) ->
+  parts = {"Save"}
+  for index = 1, select "#", ...
+    parts[#parts + 1] = tostring (select index, ...)
+  line = table.concat parts, " "
+  print line
+  lines[#lines + 1] = line
+save = ->
+  PreloadGenClear!
+  PreloadGenStart!
+  for line in *lines
+    Preload (line\gsub "\"", "'")
+  PreloadGenEnd "moonwell-systems-save.pld"
+  PreloadGenClear!
+tooltips = ->
+  parts = {}
+  for ability in *ABILITIES
+    parts[#parts + 1] = BlzGetAbilityTooltip(ability, 0) .. "|" .. BlzGetAbilityExtendedTooltip(ability, 0)
+  table.concat parts, "/"
+
+heroFields = {
+  {key: "gold", kind: "integer", min: 0, max: 1000000}
+  {key: "hero", kind: "string", maxLength: 16}
+  {key: "hardMode", kind: "boolean"}
+  {key: "items", kind: "list", maxLength: 6, of: {kind: "integer", min: 0, max: MAX}}
+}
+heroData = gold: 500, hero: "Hpal", hardMode: true, items: {1227894832, 1227894833, MAX}
+describe = (data) ->
+  "gold " .. data.gold .. " hero " .. data.hero .. " hardMode " .. tostring(data.hardMode) .. " items " ..
+    table.concat data.items, ","
+
+saveGate = (owner) ->
+  clock = Scheduler.new!
+  clock\start!
+  before = tooltips!
+
+  -- 1. Parity: the codes the test suite expects, from the game's 32-bit integers.
+  hero = Codec.new version: 1, secret: SECRET, schemas: {{version: 1, fields: heroFields}}
+  heroCode = hero\encode heroData, "WorldEdit"
+  edges = Codec.new version: 2, secret: SECRET, schemas: {{version: 2, fields: {
+    {key: "low", kind: "integer", min: -MAX, max: 0}
+    {key: "high", kind: "integer", min: 0, max: MAX}
+    {key: "fixed", kind: "integer", min: 7, max: 7}
+    {key: "flags", kind: "list", maxLength: 5, of: {kind: "boolean"}}
+    {key: "names", kind: "list", maxLength: 3, of: {kind: "string", maxLength: 4}}
+  }}}
+  edgeCode = edges\encode low: -MAX, high: MAX, fixed: 7, flags: {true, false, true}, names: {"", "ab", "\0\255\128\n"}
+  empty = Codec.new version: 9999, secret: "x", schemas: {{version: 9999, fields: {}}}
+  say "1 parity: hero", heroCode == "BAAQAfQiQ4MLZckwMDCSYGBj_____8WQGq", "edges",
+    edgeCode == "BAAgAAAAH____93CYWKAH_ABQ-Isnq", "empty", empty\encode({}, "Player \xc3\x85ke") == "BnDwdyUOJ"
+  decoded = edges\decode edgeCode
+  say "1 the edges decode:", decoded and decoded.low == -MAX and decoded.high == MAX and decoded.fixed == 7 and
+    decoded.names[3] == "\0\255\128\n" and math.type(decoded.high)
+
+  -- 4. Another binding does not decode.
+  _, why = hero\decode heroCode, "Somebody else"
+  say "4 another binding:", why
+
+  saves = Savefile.new clock, codec: hero, folder: FOLDER
+  saves\start!
+
+  -- 2. A round trip through the file and through sync.
+  clock\after 1, ->
+    saves\save owner, "slot1", heroData
+    saves\load owner, "slot1", (data, reason) -> say "2 round trip:", data and describe(data) or reason
+
+  -- 3. A slot that was never saved.
+  clock\after 2, ->
+    saves\load owner, "nothing-here", (data, reason) -> say "3 a missing slot:", data, reason
+
+  -- 5. A file that does not hold a code, and a code with one symbol changed.
+  clock\after 3, ->
+    Files.write FOLDER .. "\\damaged.pld", ABILITIES, "not!a!code"
+    saves\load owner, "damaged", (data, reason) -> say "5 a damaged file:", data, reason
+    good = hero\encode heroData, owner\getName!
+    changed = good\sub(1, 5) .. (good\sub(6, 6) == "A" and "B" or "A") .. good\sub(7)
+    Files.write FOLDER .. "\\changed.pld", ABILITIES, changed
+    saves\load owner, "changed", (data, reason) -> say "5 a changed symbol:", data, reason
+
+  -- 6. The largest save a codec may have: 8189 symbols, through 44 tooltips and 38 sync packets.
+  clock\after 4, ->
+    big = Codec.new version: 1, secret: SECRET, schemas: {{version: 1, fields: {
+      {key: "a", kind: "string", maxLength: 4095}
+      {key: "b", kind: "string", maxLength: 2037}
+    }}}
+    bigSaves = Savefile.new clock, codec: big, folder: FOLDER, prefix: "mwbig"
+    bigSaves\start!
+    data = a: string.rep("\255", 4095), b: string.rep("z", 2037)
+    started = os.clock!
+    bigSaves\save owner, "big", data
+    wrote = (os.clock! - started) * 1000
+    started = os.clock!
+    bigSaves\load owner, "big", (loaded, reason) ->
+      say "6 the largest save:", loaded and loaded.a == data.a and loaded.b == data.b or reason, "of",
+        big\getMaxLength!, "symbols arrived after", string.format("%.2f", os.clock! - started), "s"
+      bigSaves\dispose!
+    say "6 saving took", string.format("%.0f", wrote), "ms, and reading and sending",
+      string.format("%.0f", (os.clock! - started) * 1000), "ms"
+
+  -- 7. A file of version 1 loads as version 2 data.
+  clock\after 5.5, ->
+    old = Codec.new version: 1, secret: SECRET, schemas: {
+      {version: 1, fields: {{key: "gold", kind: "integer", min: 0, max: 100}}}
+    }
+    oldSaves = Savefile.new clock, codec: old, folder: FOLDER, prefix: "mwold"
+    oldSaves\start!
+    oldSaves\save owner, "old", gold: 40
+    oldSaves\dispose!
+    newer = Codec.new version: 2, secret: SECRET, schemas: {
+      {
+        version: 1, fields: {{key: "gold", kind: "integer", min: 0, max: 100}}
+        migrate: (data) -> {coins: data.gold * 10}
+      }
+      {version: 2, fields: {{key: "coins", kind: "integer", min: 0, max: 1000}}}
+    }
+    newSaves = Savefile.new clock, codec: newer, folder: FOLDER, prefix: "mwnew"
+    newSaves\start!
+    newSaves\load owner, "old", (data, reason) ->
+      say "7 a migration: coins", data and data.coins, reason
+      newSaves\dispose!
+
+  -- 8. Asking a machine for a local value, and a slot without a human. The second answer comes first: it needs no
+  -- message.
+  sync = Sync.new clock
+  sync\start!
+  clock\after 6.5, ->
+    sync\ask owner, (-> tostring Time.localUtc!), (text, reason) ->
+      say "8 ask: the local clock arrived:", text ~= nil and #text > 0, reason
+    sync\ask Player.fromIndex(5), (-> "never"), (text, reason) ->
+      say "8 ask a slot without a human:", text, reason
+
+  -- 9. Every borrowed tooltip reads as it did before the run.
+  clock\after 8, ->
+    say "9 tooltips unchanged:", tooltips! == before
+    sync\dispose!
+    saves\dispose!
+    clock\dispose!
+    say "gate done"
+    save!
+  say "gate started as", owner\getName!
+
+mw.on_main ->
+  start = Timer.create!
+  start\start 0, false, (self) ->
+    self\destroy!
+    saveGate Player.fromIndex 0

@@ -10,7 +10,7 @@ The design lives in the sibling Moonwell repository: `../moonwell/docs/superpowe
 (Part 1 binds every release; each release has its own spec and plan in `../moonwell/docs/superpowers/`). Release 1
 (v0.1.0): scheduler, signal, scope, time. Release 2 (v0.2.0): buffs, aura, dummy, on `internal/ordered.lua`. Release 3
 (v0.3.0): damage. Release 4 (v0.4.0): geometry, terrain, missile, knockback, on `internal/vector.lua` and
-`internal/ground.lua`. Release 5: persistence.
+`internal/ground.lua`. Release 5 (v0.5.0): codec, sync, savefile, on `internal/preload.lua`.
 
 ## Rules (spec §4)
 
@@ -41,7 +41,8 @@ Environment: `MOONWELL_WRAPPERS`, `MOONWELL_CLI`, `MOONWELL_YUE`, `MOONWELL_LUAL
 Spec, then a plan of test-first tasks, then implementation task by task; the maintainer approves each spec. Commit on
 `main`, staging explicit paths. The maintainer runs the in-game gate in `../wrappers-gate` (`deno task gate systems`
 for releases 1 and 2, `deno task gate systems-damage` for release 3, `deno task gate systems-physics` and
-`deno task gate systems-knockback` for release 4); then tag, pre-release and tag consumption with both libraries.
+`deno task gate systems-knockback` for release 4, `deno task gate systems-save` for release 5); then tag,
+pre-release and tag consumption with both libraries.
 
 ## Pitfalls
 
@@ -71,3 +72,17 @@ for releases 1 and 2, `deno task gate systems-damage` for release 3, `deno task 
   timeout per run.
 - A YueScript function that ends in a bare `return` compiles to Lua that LuaLS flags (`redundant-return`): end gate
   functions with a statement instead.
+- The game's integers are 32-bit and the test runner's 64-bit. Arithmetic that is meant to wrap (the codec's check
+  value) masks every product with `& 0xFFFFFFFF`, so both agree; the codec writes at most 16 bits at a time; and
+  fixed codes in `tests/codec.lua` are compared in game by the gate. Those codes came from a second implementation
+  written from the spec's layout alone; a change to the layout needs a new layout number, not new fixed codes.
+- `math.tointeger` converts strings on Lua 5.4 and not on 5.3: check `type(x) == 'number'` first.
+- A Preload file must hold only lines the game can run, none over 259 characters: anything else can crash the game
+  when `Preloader` runs it. The tests run every generated line through a simulated `Preloader` that refuses any
+  other shape.
+- Reading a save happens on one machine, so nothing on that path may create a handle. A game cache makes one per
+  call (measured); tooltips make none (`../wrappers-gate/PROBE-PRELOAD-RESULTS.md`).
+- The wrappers keep one trigger per sync prefix for every listener: a test that counts `CreateTrigger` needs a
+  prefix no other test used.
+- yue 0.34.2 writes an empty file for a source with a bitwise operator, as for `//`: gate examples keep such code
+  out (the library is Lua).
