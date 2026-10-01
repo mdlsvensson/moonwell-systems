@@ -6,7 +6,7 @@ local Timer = require('wrappers.timer')
 ---in creation order. Pure: drive it with `advance()`, or with `start()` in a map.
 ---@class MoonwellSystems.Scheduler
 ---@field package step number
----@field package onError fun(message: string)?
+---@field package onError (fun(message: string): ...)?
 ---@field package heap MoonwellSystems.SchedulerTask[]
 ---@field package tick integer
 ---@field package sequence integer
@@ -78,7 +78,7 @@ local function validDelay(seconds) return Check.finite(seconds) and seconds >= 0
 local function toTicks(step, seconds) return math.max(1, math.ceil(seconds / step - EPSILON)) end
 
 ---@param stepSeconds number? Seconds per tick; finite and positive. Default 1/32, a 0.03125 s Warcraft timer.
----@param onError fun(message: string)? Receives task failures; default prints them.
+---@param onError (fun(message: string): ...)? Receives task failures; default prints them.
 ---@return MoonwellSystems.Scheduler
 function Scheduler.new(stepSeconds, onError)
     if stepSeconds == nil then stepSeconds = 1 / 32 end
@@ -120,14 +120,14 @@ end
 
 ---Runs `callback` once, `seconds` from now (rounded up to whole ticks, at least one).
 ---@param seconds number
----@param callback fun()
+---@param callback fun(): ...
 ---@return fun() cancel Idempotent.
 function Scheduler:after(seconds, callback) return (schedule(self, seconds, callback, false, 'Scheduler.after')) end
 
 ---Runs `callback` every `seconds` (rounded up to whole ticks), starting one interval from now. A repeating task that
 ---fails is cancelled.
 ---@param seconds number
----@param callback fun()
+---@param callback fun(): ...
 ---@return fun() cancel Idempotent.
 function Scheduler:every(seconds, callback) return (schedule(self, seconds, callback, true, 'Scheduler.every')) end
 

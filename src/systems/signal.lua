@@ -5,7 +5,7 @@ local Check = require('systems.internal.check')
 ---listener runs behind the callback boundary.
 ---@class MoonwellSystems.Signal
 ---@field package listeners MoonwellSystems.SignalListener[]
----@field package onError fun(message: string)?
+---@field package onError (fun(message: string): ...)?
 ---@field package disposed boolean
 local Signal = {}
 Signal.__index = Signal
@@ -14,7 +14,7 @@ Signal.__index = Signal
 ---@field priority number
 ---@field callback function? Nil once unsubscribed.
 
----@param onError fun(message: string)? Receives listener failures; default prints them.
+---@param onError (fun(message: string): ...)? Receives listener failures; default prints them.
 ---@return MoonwellSystems.Signal
 function Signal.new(onError)
     Callback.optional(onError, 'Signal.new')

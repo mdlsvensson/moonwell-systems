@@ -11,7 +11,7 @@ local BuffStore = require('systems.buffs')
 ---@field package definition MoonwellSystems.BuffDefinition
 ---@field package source any
 ---@field package query fun(): MoonwellWrappers.Unit[]
----@field package onError fun(message: string)?
+---@field package onError (fun(message: string): ...)?
 ---@field package members MoonwellSystems.Ordered Unit -> MoonwellSystems.Buff
 ---@field package stop fun()?
 ---@field package disposed boolean
@@ -22,7 +22,7 @@ Aura.__index = Aura
 ---@param definition MoonwellSystems.BuffDefinition kind 'aura'.
 ---@param source any The emitter.
 ---@param query fun(): MoonwellWrappers.Unit[]
----@param onError fun(message: string)? Receives query and apply failures; default prints them.
+---@param onError (fun(message: string): ...)? Receives query and apply failures; default prints them.
 ---@return MoonwellSystems.Aura
 function Aura.new(store, definition, source, query, onError)
     Check.receiver(store, BuffStore, 'BuffStore', 'Aura.new')

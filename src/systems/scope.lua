@@ -4,15 +4,15 @@ local Check = require('systems.internal.check')
 ---An ownership stack: register how to release each thing you create, then dispose once. Releases run in reverse order,
 ---and one failing release never stops the others.
 ---@class MoonwellSystems.Scope
----@field package releases fun()[]
----@field package onError fun(message: string)?
+---@field package releases (fun(): ...)[]
+---@field package onError (fun(message: string): ...)?
 ---@field package disposed boolean
 local Scope = {}
 Scope.__index = Scope
 
 local METHODS = {'dispose', 'destroy', 'remove'}
 
----@param onError fun(message: string)? Receives release failures; default prints them.
+---@param onError (fun(message: string): ...)? Receives release failures; default prints them.
 ---@return MoonwellSystems.Scope
 function Scope.new(onError)
     Callback.optional(onError, 'Scope.new')
@@ -20,7 +20,7 @@ function Scope.new(onError)
 end
 
 ---@param scope MoonwellSystems.Scope
----@param release fun()
+---@param release fun(): ...
 local function keep(scope, release)
     if scope.disposed then
         Callback.call('Scope release', scope.onError, release)
@@ -30,8 +30,8 @@ local function keep(scope, release)
 end
 
 ---Takes ownership of a release function. Owning after dispose releases at once.
----@param release fun()
----@return fun()
+---@param release fun(): ...
+---@return fun(): ...
 function Scope:own(release)
     local scope = Check.receiver(self, Scope, 'Scope', 'Scope.own')
     Callback.check(release, 'Scope.own')

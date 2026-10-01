@@ -8,7 +8,7 @@ local Unit = require('wrappers.unit')
 ---polls its units and clears buffs from removed and dead ones.
 ---@class MoonwellSystems.BuffStore
 ---@field package clock MoonwellSystems.Scheduler
----@field package onError fun(message: string)?
+---@field package onError (fun(message: string): ...)?
 ---@field package units MoonwellSystems.Ordered Unit -> MoonwellSystems.Buff[], in first-buffed order.
 ---@field package disposed boolean
 ---@field package stopPoll fun()
@@ -33,13 +33,13 @@ BuffStore.__index = BuffStore
 ---@field duration number? Seconds; nil for a permanent buff.
 ---@field removeOnDeath boolean? Default true, except passive buffs.
 ---@field interval number? Seconds between onTick calls.
----@field onApply fun(buff: MoonwellSystems.Buff)?
----@field onStacks fun(buff: MoonwellSystems.Buff, previous: integer)?
----@field onTick fun(buff: MoonwellSystems.Buff)?
----@field onRemove fun(buff: MoonwellSystems.Buff, reason: MoonwellSystems.BuffRemoval)?
+---@field onApply (fun(buff: MoonwellSystems.Buff): ...)?
+---@field onStacks (fun(buff: MoonwellSystems.Buff, previous: integer): ...)?
+---@field onTick (fun(buff: MoonwellSystems.Buff): ...)?
+---@field onRemove (fun(buff: MoonwellSystems.Buff, reason: MoonwellSystems.BuffRemoval): ...)?
 
 ---@class MoonwellSystems.BuffStoreOptions
----@field onError fun(message: string)? Receives callback and release failures; default prints them.
+---@field onError (fun(message: string): ...)? Receives callback and release failures; default prints them.
 ---@field pollInterval number? Seconds between checks for removed and dead units; default 0.25.
 
 ---A buff on one unit. `data` is free for the buff's own state.
@@ -50,7 +50,7 @@ BuffStore.__index = BuffStore
 ---@field package definition MoonwellSystems.BuffDefinition
 ---@field package source any
 ---@field package layers {cancel: fun()?, expires: integer?}[]
----@field package releases fun()[]
+---@field package releases (fun(): ...)[]
 ---@field package sharedCancel fun()?
 ---@field package sharedExpires integer?
 ---@field package tickCancel fun()?
@@ -339,7 +339,7 @@ function Buff:getRemaining()
 end
 
 ---Registers the inverse of a change the buff made. Runs at once if the buff has ended.
----@param release fun()
+---@param release fun(): ...
 function Buff:own(release)
     local buff = Check.receiver(self, Buff, 'Buff', 'Buff.own')
     Callback.check(release, 'Buff.own')

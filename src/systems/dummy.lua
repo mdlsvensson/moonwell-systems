@@ -9,7 +9,7 @@ local PlayerWrapper = require('wrappers.player')
 ---No pooling. The dummy unit type comes from the map's object data (README).
 ---@class MoonwellSystems.Dummies
 ---@field package clock MoonwellSystems.Scheduler
----@field package onError fun(message: string)?
+---@field package onError (fun(message: string): ...)?
 ---@field package leases MoonwellSystems.Ordered Unit -> MoonwellSystems.DummyLease, in cast order.
 ---@field package disposed boolean
 local Dummies = {}
@@ -94,7 +94,7 @@ local function release(lease)
 end
 
 ---@param clock MoonwellSystems.Scheduler Schedules each dummy's removal.
----@param options {onError: fun(message: string)?}?
+---@param options {onError: (fun(message: string): ...)?}?
 ---@return MoonwellSystems.Dummies
 function Dummies.new(clock, options)
     Check.receiver(clock, Scheduler, 'Scheduler', 'Dummies.new')

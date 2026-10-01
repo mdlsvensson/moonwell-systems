@@ -32,7 +32,7 @@ end
 ---Runs `fn(...)` behind the boundary. A failure goes to `onError(message)`, itself behind the boundary, or is printed
 ---as `[systems] <label> failed: <message>`.
 ---@param label string
----@param onError fun(message: string)?
+---@param onError (fun(message: string): ...)?
 ---@param fn function
 ---@param ... any
 ---@return boolean succeeded
