@@ -5,7 +5,7 @@ Handwritten annotated Lua 5.3, test-first changes, and no Node.js or Deno in thi
 
 ## Tools
 
-- YueScript 0.34.2 (`yue`, installed by Moonwell setup; or `MOONWELL_YUE`). Its `yue -e` runs the Lua tools.
+- YueScript 0.34.3 (`yue`, installed by Moonwell setup; or `MOONWELL_YUE`). Its `yue -e` runs the Lua tools.
 - LuaLS 3.19.1 (`MOONWELL_LUALS`, for example the Lua extension's `server/bin/lua-language-server.exe`).
 - Lua 5.3.6 `luac` (`MOONWELL_LUAC`); the wrappers' CONTRIBUTING shows how to build `luac53.exe` on Windows.
 - The `moonwell` program, 0.8.0 or later, on the PATH (or `MOONWELL` naming the executable: a path, not a command

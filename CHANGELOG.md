@@ -4,6 +4,7 @@
 
 - `tools/integration.lua` runs the `moonwell` program of Moonwell 0.8.0 (on the PATH, or `MOONWELL`) in place of the
   Deno CLI; `MOONWELL_CLI` is gone and `MOONWELL_REPO` names the Moonwell checkout. No library code changed.
+- The documents name YueScript 0.34.3, the compiler Moonwell 0.8.1 pins.
 
 ## 0.5.0 (2026-10-01)
 

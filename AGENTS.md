@@ -88,5 +88,6 @@ pre-release and tag consumption with both libraries.
   call (measured); tooltips make none (`../wrappers-gate/PROBE-PRELOAD-RESULTS.md`).
 - The wrappers keep one trigger per sync prefix for every listener: a test that counts `CreateTrigger` needs a
   prefix no other test used.
-- yue 0.34.2 writes an empty file for a source with a bitwise operator, as for `//`: gate examples keep such code
+- YueScript cannot build bitwise operators: 0.34.2 wrote an empty file for such a source, as for `//`, and 0.34.3
+  (pinned by Moonwell 0.8.1, where `//` works) fails with an error. Gate examples keep such code
   out (the library is Lua).
