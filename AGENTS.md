@@ -8,6 +8,7 @@ pre-releases: `v0.1.0` is on `1725436` (in-game gate and tag consumption passed 
 `v0.3.0` on `d67d3fc`, `v0.4.0` on `cfa21b6` and `v0.5.0` on `11331a8` (all four passed 2026-10-01). The port of
 `wc3-lib` is complete. `v0.5.1` (2026-10-02) adds only `moonwell-library.json`: `src/` is that of `v0.5.0`, the in-game
 gate was not re-run, and integration's consumer names both libraries by `path` alone, so every run exercises the files.
+Its tag is on `46ebd6f`; tag consumption passed the same day, with wrappers `v0.8.1` and no `dir` in either entry.
 
 The design lives in the sibling Moonwell repository: `../moonwell/docs/superpowers/specs/2026-09-30-moonwell-systems-design.md`
 (Part 1 binds every release; each release has its own spec and plan in `../moonwell/docs/superpowers/`). Release 1

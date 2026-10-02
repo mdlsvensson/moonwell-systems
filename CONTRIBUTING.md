@@ -222,3 +222,9 @@ v0.5.0: passed 2026-10-01 with Moonwell 0.5.2 (`main`) and moonwell-wrappers `v0
 `11331a8d947c97ba6db48e518220d5963a7d468a` and wrappers commit `e9c2880993fd8b0755da8d2d442654cea467c913`, the 21
 fetched systems files matched the tag's `src/` byte for byte, and the lock stayed unchanged after removing the map's
 `.moonwell/` and checking again.
+
+v0.5.1: passed 2026-10-02 with Moonwell 0.8.1 and moonwell-wrappers `v0.8.1`, in a map made fresh with `init --link`
+whose two entries have no `dir` (the README configuration): check, normal and minified builds of the five gate
+examples; `moonwell.lock` recorded systems commit `46ebd6f19e52851581a87b3d942270e8045db293` and wrappers commit
+`c8e434bbcc90e9dabf70189564f7302272187198`, each with `"dir": ""`, the 21 fetched systems files matched the tag's
+`src/` byte for byte, and the lock stayed unchanged after removing the map's `.moonwell/` and checking again.
