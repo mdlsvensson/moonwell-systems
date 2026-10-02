@@ -8,8 +8,10 @@ local function absolute(path)
     return root .. '/' .. path
 end
 local wrappers = absolute(os.getenv('MOONWELL_WRAPPERS') or '../moonwell-wrappers')
-local cli = os.getenv('MOONWELL_CLI')
-    or ('deno run -A ' .. Lib.quote(Lib.native(absolute('../moonwell/cli/src/main.ts'))))
+-- The moonwell program: on the PATH, or the executable MOONWELL names. The Moonwell checkout is the one whose Pkl
+-- schema the consumer links to.
+local cli = Lib.quote(Lib.native(os.getenv('MOONWELL') or 'moonwell'))
+local repo = absolute(os.getenv('MOONWELL_REPO') or '../moonwell')
 local yue = os.getenv('MOONWELL_YUE') or 'yue'
 local luals = os.getenv('MOONWELL_LUALS') or 'lua-language-server'
 
@@ -19,7 +21,8 @@ Lib.mkdir(work)
 print('Consumer: ' .. consumer)
 local function moonwell(args) return Lib.must(cli .. ' ' .. args, consumer) end
 
-Lib.must(cli .. ' init --link ' .. Lib.quote(Lib.native(consumer)), root)
+-- `init --link` finds the checkout by walking up from its working directory, so it runs there.
+Lib.must(cli .. ' init --link ' .. Lib.quote(Lib.native(consumer)), repo)
 Lib.write(consumer .. '/moonwell.local.pkl', table.concat({
     'amends "moonwell.pkl"',
     'libraries {',

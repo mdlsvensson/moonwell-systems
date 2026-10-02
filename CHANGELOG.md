@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `tools/integration.lua` runs the `moonwell` program of Moonwell 0.8.0 (on the PATH, or `MOONWELL`) in place of the
+  Deno CLI; `MOONWELL_CLI` is gone and `MOONWELL_REPO` names the Moonwell checkout. No library code changed.
+
 ## 0.5.0 (2026-10-01)
 
 Release 5 of the wc3-lib port, the last (spec `2026-10-01-moonwell-systems-release-5-design` in the Moonwell

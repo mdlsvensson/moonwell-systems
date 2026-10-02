@@ -34,14 +34,18 @@ yue -e tools/check.lua             # Lua 5.3.6 syntax (MOONWELL_LUAC) and every 
 yue -e tools/integration.lua       # Moonwell builds, LuaLS fixtures, one-module bundles, the gate example
 ```
 
-Environment: `MOONWELL_WRAPPERS`, `MOONWELL_CLI`, `MOONWELL_YUE`, `MOONWELL_LUALS`, `MOONWELL_LUAC` (CONTRIBUTING).
+Environment: `MOONWELL` (the `moonwell` executable, when it is not on the PATH), `MOONWELL_REPO`, `MOONWELL_WRAPPERS`,
+`MOONWELL_YUE`, `MOONWELL_LUALS`, `MOONWELL_LUAC` (CONTRIBUTING). Since Moonwell 0.8.0 the CLI is a Go program:
+integration runs `moonwell init --link` with the Moonwell checkout as its working directory (the program finds the
+checkout by walking up from there), and `MOONWELL_CLI`, which named a Deno command line, is gone. `tools/lib.lua` is
+shared with moonwell-wrappers, which adds a `MOONWELL_PKL` override to its copy.
 
 ## Process
 
 Spec, then a plan of test-first tasks, then implementation task by task; the maintainer approves each spec. Commit on
-`main`, staging explicit paths. The maintainer runs the in-game gate in `../wrappers-gate` (`deno task gate systems`
-for releases 1 and 2, `deno task gate systems-damage` for release 3, `deno task gate systems-physics` and
-`deno task gate systems-knockback` for release 4, `deno task gate systems-save` for release 5); then tag,
+`main`, staging explicit paths. The maintainer runs the in-game gate in `../wrappers-gate` (`yue -e gate.lua systems`
+for releases 1 and 2, `yue -e gate.lua systems-damage` for release 3, `yue -e gate.lua systems-physics` and
+`yue -e gate.lua systems-knockback` for release 4, `yue -e gate.lua systems-save` for release 5); then tag,
 pre-release and tag consumption with both libraries.
 
 ## Pitfalls
