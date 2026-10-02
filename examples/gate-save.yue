@@ -1,5 +1,5 @@
 -- The moonwell-systems persistence gate (release 5). Built by the gate map's `systems-save` run (../wrappers-gate,
--- deno task gate systems-save); CONTRIBUTING lists every expected message. Nothing needs watching: it starts just
+-- yue -e gate.lua systems-save); CONTRIBUTING lists every expected message. Nothing needs watching: it starts just
 -- after the map loads, and also writes its lines to CustomMapData\moonwell-systems-save.pld. Its save files go to
 -- CustomMapData\moonwell-gate\.
 import "moonwell" as mw

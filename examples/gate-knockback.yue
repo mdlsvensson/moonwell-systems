@@ -1,5 +1,5 @@
 -- The moonwell-systems knockback gate (release 4). Built by the gate map's `systems-knockback` run (../wrappers-gate,
--- deno task gate systems-knockback); CONTRIBUTING lists every expected message. One footman is pushed at a time, at
+-- yue -e gate.lua systems-knockback); CONTRIBUTING lists every expected message. One footman is pushed at a time, at
 -- the centre of the screen, and each push is announced a second before it happens. It starts just after the map
 -- loads, and also writes its lines to CustomMapData\moonwell-systems-knockback.pld.
 import "moonwell" as mw

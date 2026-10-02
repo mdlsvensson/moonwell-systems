@@ -1,5 +1,5 @@
 -- The moonwell-systems damage gate (release 3). Built by the gate map's `systems-damage` run (../wrappers-gate,
--- deno task gate systems-damage); CONTRIBUTING lists every expected message. It starts just after the map loads.
+-- yue -e gate.lua systems-damage); CONTRIBUTING lists every expected message. It starts just after the map loads.
 -- The dummy type e000 comes from the map's object data (README, "The dummy unit type").
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}

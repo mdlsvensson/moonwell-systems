@@ -1,5 +1,5 @@
 -- The moonwell-systems physics gate (release 4): missiles and terrain. Built by the gate map's `systems-physics` run
--- (../wrappers-gate, deno task gate systems-physics); CONTRIBUTING lists every expected message. It starts just after
+-- (../wrappers-gate, yue -e gate.lua systems-physics); CONTRIBUTING lists every expected message. It starts just after
 -- the map loads, and also writes its lines to CustomMapData\moonwell-systems-physics.pld. Knockbacks have their own
 -- gate, gate-knockback.yue.
 import "moonwell" as mw

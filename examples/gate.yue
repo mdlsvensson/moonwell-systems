@@ -1,4 +1,4 @@
--- The moonwell-systems in-game gate. Built by the gate map's `systems` run (../wrappers-gate, deno task gate systems);
+-- The moonwell-systems in-game gate. Built by the gate map's `systems` run (../wrappers-gate, yue -e gate.lua systems);
 -- CONTRIBUTING lists every expected message. It starts just after the map loads.
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
