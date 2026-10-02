@@ -25,9 +25,10 @@ local function moonwell(args) return Lib.must(cli .. ' ' .. args, consumer) end
 Lib.must(cli .. ' init --link ' .. Lib.quote(Lib.native(consumer)), repo)
 Lib.write(consumer .. '/moonwell.local.pkl', table.concat({
     'amends "moonwell.pkl"',
+    -- No `dir`: each library's moonwell-library.json names it.
     'libraries {',
-    '  ["wrappers"] { path = "' .. wrappers .. '"; dir = "src" }',
-    '  ["systems"] { path = "' .. root .. '"; dir = "src" }',
+    '  ["wrappers"] { path = "' .. wrappers .. '" }',
+    '  ["systems"] { path = "' .. root .. '" }',
     '}',
     os.getenv('MOONWELL_YUE') and ('yue { path = "' .. absolute(yue) .. '" }') or '',
     '',

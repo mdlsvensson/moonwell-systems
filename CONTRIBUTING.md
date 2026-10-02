@@ -11,8 +11,8 @@ Handwritten annotated Lua 5.3, test-first changes, and no Node.js or Deno in thi
 - The `moonwell` program, 0.8.0 or later, on the PATH (or `MOONWELL` naming the executable: a path, not a command
   line), and Pkl 0.32 on the PATH.
 - Sibling checkouts of Moonwell (`../moonwell`; or `MOONWELL_REPO`) and moonwell-wrappers (`../moonwell-wrappers`,
-  v0.7.0 or later; or `MOONWELL_WRAPPERS`). Integration links its consumer map to the Moonwell checkout's Pkl schema,
-  so the program and that checkout must have the same major and minor version.
+  v0.8.1 or later, for its `moonwell-library.json`; or `MOONWELL_WRAPPERS`). Integration links its consumer map to the
+  Moonwell checkout's Pkl schema, so the program and that checkout must have the same major and minor version.
 
 ## Checks
 
@@ -179,6 +179,9 @@ round trip gave `gold 500 hero Hpal hardMode true items 1227894832,1227894833,21
 `checksum` twice; the largest save came back whole (saving 10 ms, reading and sending 64 ms, arrived after 0.07 s);
 `coins 400`; `absent`, then the local clock; the tooltips unchanged; and the five files in `moonwell-gate\`, of which
 `big.pld` has 44 lines.
+
+v0.5.1: not re-run (maintainer's decision, 2026-10-02). The release adds `moonwell-library.json` and changes a tool and
+documentation; no file under `src/` changed since v0.5.0.
 
 ## Publication and tag gate (maintainer)
 

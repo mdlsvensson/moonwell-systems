@@ -6,12 +6,12 @@ pipeline, missiles, knockbacks and save files. Annotated Lua 5.3, built on
 [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers), with editor completion for YueScript and Lua
 maps.
 
-**Status:** `v0.5.0` (2026-10-01): `systems.codec`, `systems.sync` and `systems.savefile` join `systems.scheduler`,
-`systems.signal`, `systems.scope`, `systems.time`, `systems.buffs`, `systems.aura`, `systems.dummy`,
-`systems.damage`, `systems.geometry`, `systems.terrain`, `systems.missile` and `systems.knockback`. The port of
-`wc3-lib` is complete. It needs moonwell-wrappers `v0.7.0` or later and
-Moonwell 0.5.2 or later. Multiplayer desync checks are deferred until before Moonwell 1.0. Its in-game gate passed on
-3.0.0.24268.
+**Status:** `v0.5.1` (2026-10-02): the library names its own module folder (`moonwell-library.json`), so a map no
+longer writes `dir = "src"`. Its code is that of `v0.5.0` (2026-10-01): `systems.codec`, `systems.sync` and
+`systems.savefile` join `systems.scheduler`, `systems.signal`, `systems.scope`, `systems.time`, `systems.buffs`,
+`systems.aura`, `systems.dummy`, `systems.damage`, `systems.geometry`, `systems.terrain`, `systems.missile` and
+`systems.knockback`. The port of `wc3-lib` is complete. It needs moonwell-wrappers `v0.7.0` or later and Moonwell 0.5.2
+or later. Multiplayer desync checks are deferred until before Moonwell 1.0. Its in-game gate passed on 3.0.0.24268.
 
 ## Use it
 
@@ -19,14 +19,18 @@ Moonwell libraries cannot declare dependencies, so list both libraries in the ma
 
 ```pkl
 libraries {
-  ["wrappers"] { github = "mdlsvensson/moonwell-wrappers"; tag = "v0.7.0"; dir = "src" }
-  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.5.0"; dir = "src" }
+  ["wrappers"] { github = "mdlsvensson/moonwell-wrappers"; tag = "v0.8.1" }
+  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.5.1" }
 }
 ```
 
 Commit the resulting `moonwell.lock`. To work on a local checkout, override the entries in `moonwell.local.pkl` with
 `path = "../moonwell-systems"` (and `path = "../moonwell-wrappers"`). Modules are named `systems.<name>`, for example
 `import "systems.scheduler" as Scheduler`.
+
+Each library's `moonwell-library.json` tells Moonwell 0.6.0 or later that its module names start at `src/`. With
+Moonwell 0.5, or a tag before wrappers `v0.8.1` or systems `v0.5.1`, add `dir = "src"` to that entry. An entry that
+still has it keeps working.
 
 ## Rules
 
