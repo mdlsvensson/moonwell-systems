@@ -4,11 +4,11 @@ This is an optional Moonwell library in annotated Lua 5.3: `wc3-lib`'s systems, 
 moonwell-wrappers. Runtime modules live only in `src/systems/`; maps consume it next to the wrappers, and
 `moonwell-library.json` at the root names `src` as the module folder (since `v0.5.1`; a map on an older tag, or on
 Moonwell 0.5, writes `dir = "src"`). The remote is `mdlsvensson/moonwell-systems` (HTTPS). Tags are immutable GitHub
-pre-releases: `v0.1.0` is on `1725436` (in-game gate and tag consumption passed 2026-09-30), `v0.2.0` on `afabc3d`,
-`v0.3.0` on `d67d3fc`, `v0.4.0` on `cfa21b6` and `v0.5.0` on `11331a8` (all four passed 2026-10-01). The port of
+pre-releases: `v0.1.0` is on `0b51fd1` (in-game gate and tag consumption passed 2026-09-30), `v0.2.0` on `c20f013`,
+`v0.3.0` on `63027c9`, `v0.4.0` on `b75d024` and `v0.5.0` on `5866744` (all four passed 2026-10-01). The port of
 `wc3-lib` is complete. `v0.5.1` (2026-10-02) adds only `moonwell-library.json`: `src/` is that of `v0.5.0`, the in-game
 gate was not re-run, and integration's consumer names both libraries by `path` alone, so every run exercises the files.
-Its tag is on `46ebd6f`; tag consumption passed the same day, with wrappers `v0.8.1` and no `dir` in either entry.
+Its tag is on `8792bb3`; tag consumption passed the same day, with wrappers `v0.8.1` and no `dir` in either entry.
 
 The design lives in the sibling Moonwell repository: `../moonwell/docs/superpowers/specs/2026-09-30-moonwell-systems-design.md`
 (Part 1 binds every release; each release has its own spec and plan in `../moonwell/docs/superpowers/`). Release 1
