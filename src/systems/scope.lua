@@ -1,5 +1,6 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
 
 ---An ownership stack: register how to release each thing you create, then dispose once. Releases run in reverse order,
 ---and one failing release never stops the others.
@@ -12,11 +13,16 @@ Scope.__index = Scope
 
 local METHODS = {'dispose', 'destroy', 'remove'}
 
----@param onError (fun(message: string): ...)? Receives release failures; default prints them.
+---@class MoonwellSystems.ScopeOptions
+---@field onError (fun(message: string): ...)? Receives release failures; default prints them.
+
+local OPTIONS = {onError = {'function'}}
+
+---@param options MoonwellSystems.ScopeOptions?
 ---@return MoonwellSystems.Scope
-function Scope.new(onError)
-    Callback.optional(onError, 'Scope.new')
-    return setmetatable({releases = {}, onError = onError, disposed = false}, Scope)
+function Scope.new(options)
+    local read = Fields.options(options, OPTIONS, 'Scope.new')
+    return setmetatable({releases = {}, onError = read.onError, disposed = false}, Scope)
 end
 
 ---@param scope MoonwellSystems.Scope

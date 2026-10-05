@@ -57,7 +57,7 @@ local function setup(step, options)
     unwalkable, obstacle = function() return false end, function() return false end
     items = {}
     bounds = {minX = -10000, minY = -10000, maxX = 10000, maxY = 10000}
-    local clock = Scheduler.new(step or 1)
+    local clock = Scheduler.new({step = step or 1})
     resetCalls()
     return Knockbacks.new(clock, options), clock
 end
@@ -284,7 +284,7 @@ test('the system ticks only while units are pushed, and dispose releases the han
 end)
 
 test('arguments are checked at the caller', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     failsAt(function() Knockbacks.new({}) end, 'Knockbacks.new: expected Scheduler')
     failsAt(function() Knockbacks.new(clock, 5) end, 'Knockbacks.new: expected an options table')
     failsAt(function() Knockbacks.new(clock, {onError = 5}) end, 'Knockbacks.new: expected a callback function')

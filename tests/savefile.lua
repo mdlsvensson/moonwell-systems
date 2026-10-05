@@ -89,7 +89,7 @@ local function setup(me, options, fresh)
     end
     here, sent, texts, dead = slots[me or 0], {}, {}, {}
     if fresh ~= false then files = {} end
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local merged = {codec = codec(), folder = 'Vale'}
     for key, value in pairs(options or {}) do merged[key] = value end
     local saves = Savefile.new(clock, merged)
@@ -260,7 +260,7 @@ test('the default abilities hold the longest code a codec may have', function()
 end)
 
 test('start checks every borrowed ability, and save and load need it', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     here, texts, dead = slots[0], {}, {}
     local me = Players.fromIndex(0)
     -- A prefix of its own: the wrappers keep one trigger per prefix, and other tests made the default one.
@@ -313,7 +313,7 @@ test('dispose ends open loads, is idempotent, and later calls raise', function()
 end)
 
 test('new, save and load check their arguments at the caller', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local function with(overrides)
         local options = {codec = codec(), folder = 'Vale'}
         for key, value in pairs(overrides) do options[key] = value ~= 'none' and value or nil end

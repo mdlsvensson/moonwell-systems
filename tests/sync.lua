@@ -50,7 +50,7 @@ end
 local function setup(me, options)
     for index = 0, 27 do slots[index].controller, slots[index].state = MAP_CONTROL_USER, PLAYER_SLOT_STATE_PLAYING end
     here, sent, accepts = slots[me or 0], {}, true
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local system = Sync.new(clock, options)
     system:start()
     resetCalls()
@@ -295,7 +295,7 @@ test('failures are printed, or go to onError, and nothing is rethrown', function
 end)
 
 test('new, start and ask check their arguments at the caller', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     failsAt(function() Sync.new({}) end, '[systems] Sync.new: expected Scheduler')
     failsAt(function() Sync.new(clock, 5) end, '[systems] Sync.new: expected an options table')
     for _, prefix in ipairs({'', 5, 'two words', 'dot.ted', string.rep('p', 33)}) do

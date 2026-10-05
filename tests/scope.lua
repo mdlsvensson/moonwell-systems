@@ -4,7 +4,7 @@ local function joined(list) return table.concat(list, ',') end
 
 test('releases in reverse order, continues after failures and releases late owners at once', function()
     local seen, messages = {}, {}
-    local scope = Scope.new(function(message) messages[#messages + 1] = message end)
+    local scope = Scope.new({onError = function(message) messages[#messages + 1] = message end})
     scope:own(function() seen[#seen + 1] = 'first' end)
     scope:own(function() error('boom') end)
     scope:add({dispose = function() seen[#seen + 1] = 'second' end})
@@ -41,7 +41,7 @@ test('add prefers dispose, then destroy, then remove, and returns the value', fu
 end)
 
 test('arguments are checked at the caller', function()
-    failsAt(function() Scope.new('x') end, 'Scope.new: expected a callback function')
+    failsAt(function() Scope.new({onError = 'x'}) end, "Scope.new: 'onError' expected a function")
     local scope = Scope.new()
     failsAt(function() scope:own(5) end, 'Scope.own: expected a callback function')
     failsAt(function() scope:add({}) end, 'Scope.add: expected a value with dispose, destroy or remove')

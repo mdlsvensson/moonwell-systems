@@ -13,7 +13,7 @@ local function pool(clock, items)
 end
 
 test('wake schedules one task; it steps with the clock step and stops when idle', function()
-    local clock = Scheduler.new(0.5)
+    local clock = Scheduler.new({step = 0.5})
     local items = {1, 2}
     local stepper, steps = pool(clock, items)
     stepper:wake(); stepper:wake()
@@ -24,7 +24,7 @@ test('wake schedules one task; it steps with the clock step and stops when idle'
 end)
 
 test('settle stops an idle stepper outside a step, and waits during one', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local items = {1}
     local stepper
     local during
@@ -40,7 +40,7 @@ test('settle stops an idle stepper outside a step, and waits during one', functi
 end)
 
 test('a step that raises leaves the stepper ready to wake again', function()
-    local clock = Scheduler.new(1, function() end)
+    local clock = Scheduler.new({step = 1, onError = function() end})
     local raising = true
     local count = 0
     local stepper = Stepper.new(clock, function()

@@ -3,7 +3,7 @@ local Scheduler = require('systems.scheduler')
 local function joined(list) return table.concat(list, ',') end
 
 test('cancels later callbacks and defers additions during dispatch', function()
-    local clock = Scheduler.new(0.25)
+    local clock = Scheduler.new({step = 0.25})
     local calls, cancel = {}, function() end
     clock:after(0, function()
         calls[#calls + 1] = 'first'; cancel()
@@ -17,7 +17,7 @@ test('cancels later callbacks and defers additions during dispatch', function()
 end)
 
 test('rounds deadlines up, recurs and releases cancelled work', function()
-    local clock = Scheduler.new(0.25)
+    local clock = Scheduler.new({step = 0.25})
     local count = 0
     local cancel = clock:every(0.3, function() count = count + 1 end)
     clock:advance(); eq(count, 0)
@@ -34,7 +34,7 @@ end)
 
 test('a failing task is cancelled and reported; advancing during a tick raises', function()
     local messages = {}
-    local clock = Scheduler.new(1, function(message) messages[#messages + 1] = message end)
+    local clock = Scheduler.new({step = 1, onError = function(message) messages[#messages + 1] = message end})
     local later = 0
     clock:every(1, function() clock:advance() end)
     clock:after(1, function() later = later + 1 end)
@@ -45,7 +45,7 @@ test('a failing task is cancelled and reported; advancing during a tick raises',
 end)
 
 test('without onError a failure is printed', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     clock:after(1, function() error('intentional scheduler probe') end)
     clock:advance()
     eq(#PRINTED, 1)
@@ -54,13 +54,13 @@ test('without onError a failure is printed', function()
 end)
 
 test('tick rounding absorbs float error in non power-of-two steps', function()
-    local clock = Scheduler.new(0.01)
+    local clock = Scheduler.new({step = 0.01})
     eq(clock:ticks(0.07), 7); eq(clock:ticks(0.071), 8); eq(clock:ticks(0), 1)
     failsAt(function() clock:ticks(-1) end, 'Scheduler.ticks: expected a finite non-negative delay')
 end)
 
 test('the heap runs due tasks by deadline, then creation order, and removes mid-heap tasks', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local order = {}
     clock:after(3, function() order[#order + 1] = 'c3' end)
     clock:every(1, function() order[#order + 1] = 'r1' end)
@@ -75,7 +75,7 @@ test('the heap runs due tasks by deadline, then creation order, and removes mid-
 end)
 
 test('dispose during a tick stops the rest of the tick', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local ran = {}
     clock:after(1, function() ran[#ran + 1] = 'first'; clock:dispose() end)
     clock:after(1, function() ran[#ran + 1] = 'second' end)
@@ -84,11 +84,14 @@ test('dispose during a tick stops the rest of the tick', function()
 end)
 
 test('arguments are checked at the caller', function()
-    failsAt(function() Scheduler.new(0) end, 'Scheduler.new: expected a finite positive step')
-    failsAt(function() Scheduler.new(-1) end, 'Scheduler.new: expected a finite positive step')
-    failsAt(function() Scheduler.new(math.huge) end, 'Scheduler.new: expected a finite positive step')
-    failsAt(function() Scheduler.new('1') end, 'Scheduler.new: expected a finite positive step')
-    failsAt(function() Scheduler.new(1, 5) end, 'Scheduler.new: expected a callback function')
+    failsAt(function() Scheduler.new({step = 0}) end, "Scheduler.new: 'step' expected a finite positive number")
+    failsAt(function() Scheduler.new({step = -1}) end, "Scheduler.new: 'step' expected a finite positive number")
+    failsAt(function() Scheduler.new({step = math.huge}) end, "Scheduler.new: 'step' expected")
+    failsAt(function() Scheduler.new({step = '1'}) end, "Scheduler.new: 'step' expected")
+    failsAt(function() Scheduler.new(0.5) end, 'Scheduler.new: expected an options table')
+    failsAt(function() Scheduler.new({1 / 32}) end, "Scheduler.new: unknown key '1'")
+    failsAt(function() Scheduler.new({stepSeconds = 1}) end, "Scheduler.new: unknown key 'stepSeconds'")
+    failsAt(function() Scheduler.new({onError = 5}) end, "Scheduler.new: 'onError' expected a function")
     local clock = Scheduler.new()
     eq(clock:getStep(), 1 / 32)
     failsAt(function() clock:after(-1, function() end) end, 'Scheduler.after: expected a finite non-negative delay')
@@ -113,7 +116,7 @@ test('start drives advance from one periodic timer; stop and dispose destroy it'
     end)
     native('PauseTimer', function() end)
     native('DestroyTimer', function(timer) timer.destroyed = true end)
-    local clock = Scheduler.new(0.5)
+    local clock = Scheduler.new({step = 0.5})
     local runs = 0
     clock:every(0.5, function() runs = runs + 1 end)
     local stop = clock:start()

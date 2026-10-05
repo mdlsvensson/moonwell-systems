@@ -6,7 +6,7 @@ local Unit = require('wrappers.unit')
 local function newUnit() return Unit.fromHandle({}) end
 
 test('emitters own independent contributions and recover after dispel', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local buffs, u = BuffStore.new(clock, {pollInterval = 100}), newUnit()
     local armor = {id = 'armor', kind = 'aura'}
     local targets = {u}
@@ -19,7 +19,7 @@ test('emitters own independent contributions and recover after dispel', function
 end)
 
 test('start updates at once and on its interval; dispose stops the timer', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local buffs, u, v = BuffStore.new(clock, {pollInterval = 100}), newUnit(), newUnit()
     local targets = {u}
     local aura = Aura.new(buffs, {id = 'a', kind = 'aura'}, 'src', function() return targets end)
@@ -34,7 +34,7 @@ test('start updates at once and on its interval; dispose stops the timer', funct
 end)
 
 test('members follow the query order; a failing query is reported and the timer goes on', function()
-    local clock, messages = Scheduler.new(1), {}
+    local clock, messages = Scheduler.new({step = 1}), {}
     local buffs, u, v = BuffStore.new(clock, {pollInterval = 100}), newUnit(), newUnit()
     local order, broken = {}, false
     local definition = {id = 'ordered', kind = 'aura',
@@ -56,7 +56,7 @@ test('members follow the query order; a failing query is reported and the timer 
 end)
 
 test('arguments are checked at the caller', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local buffs = BuffStore.new(clock, {pollInterval = 100})
     failsAt(function() Aura.new({}, {id = 'a', kind = 'aura'}, nil, print) end, 'Aura.new: expected BuffStore')
     failsAt(function() Aura.new(buffs, {id = 'a', kind = 'active'}, nil, print) end,

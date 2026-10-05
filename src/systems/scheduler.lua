@@ -1,5 +1,6 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
 local Timer = require('wrappers.timer')
 
 ---A deterministic fixed-step clock. Delays round up to whole ticks (at least one), and tasks due on the same tick run
@@ -77,17 +78,18 @@ end
 local function validDelay(seconds) return Check.finite(seconds) and seconds >= 0 end
 local function toTicks(step, seconds) return math.max(1, math.ceil(seconds / step - EPSILON)) end
 
----@param stepSeconds number? Seconds per tick; finite and positive. Default 1/32, a 0.03125 s Warcraft timer.
----@param onError (fun(message: string): ...)? Receives task failures; default prints them.
+---@class MoonwellSystems.SchedulerOptions
+---@field step number? Seconds per tick; finite and positive. Default 1/32, a 0.03125 s Warcraft timer.
+---@field onError (fun(message: string): ...)? Receives task failures; default prints them.
+
+local OPTIONS = {step = {'positive', default = 1 / 32}, onError = {'function'}}
+
+---@param options MoonwellSystems.SchedulerOptions?
 ---@return MoonwellSystems.Scheduler
-function Scheduler.new(stepSeconds, onError)
-    if stepSeconds == nil then stepSeconds = 1 / 32 end
-    if not Check.finite(stepSeconds) or stepSeconds <= 0 then
-        error('[systems] Scheduler.new: expected a finite positive step', 2)
-    end
-    Callback.optional(onError, 'Scheduler.new')
-    return setmetatable({step = stepSeconds, onError = onError, heap = {}, tick = 0, sequence = 0, advancing = false,
-        disposed = false}, Scheduler)
+function Scheduler.new(options)
+    local read = Fields.options(options, OPTIONS, 'Scheduler.new')
+    return setmetatable({step = read.step, onError = read.onError, heap = {}, tick = 0, sequence = 0,
+        advancing = false, disposed = false}, Scheduler)
 end
 
 ---@param self unknown

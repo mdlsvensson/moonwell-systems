@@ -8,6 +8,7 @@ clock:nonexistent() -- EXPECT undefined-field
 Scope.new():own(5) -- EXPECT param-type-mismatch
 Time.formatDuration('5') -- EXPECT param-type-mismatch
 Signal.new():subscribe(function() end, 'high') -- EXPECT param-type-mismatch
+Scheduler.new({step = 'fast'}) -- EXPECT assign-type-mismatch
 local date = Time.unixToUtc(0)
 print(date.year) -- EXPECT need-check-nil
 local BuffStore = require('systems.buffs')

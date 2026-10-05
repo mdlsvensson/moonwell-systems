@@ -6,7 +6,7 @@ local function newUnit() return Unit.fromHandle({}) end
 local function quiet(clock, onError) return BuffStore.new(clock, {pollInterval = 100, onError = onError}) end
 
 test('independent stacks expire separately and respect the cap', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local buffs, u, changes = quiet(clock), newUnit(), {}
     local poison = {id = 'poison', kind = 'active', stacking = 'independent', maxStacks = 2, duration = 2,
         onStacks = function(buff) changes[#changes + 1] = buff:getStacks() end}
@@ -22,7 +22,7 @@ test('independent stacks expire separately and respect the cap', function()
 end)
 
 test('refresh extends a buff and removal releases owned effects exactly once', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local buffs, u, cleaned = quiet(clock), newUnit(), 0
     local haste = {id = 'haste', kind = 'active', duration = 2,
         onApply = function(buff) buff:own(function() cleaned = cleaned + 1 end) end}
@@ -34,7 +34,7 @@ test('refresh extends a buff and removal releases owned effects exactly once', f
 end)
 
 test('callbacks can remove their buff; death keeps passive buffs; a disposed store refuses', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local buffs, u = quiet(clock), newUnit()
     local ephemeral = buffs:apply(u, {id = 'cancel', kind = 'active', duration = 2,
         onApply = function(buff) buff:remove() end})
@@ -50,7 +50,7 @@ test('callbacks can remove their buff; death keeps passive buffs; a disposed sto
 end)
 
 test('a failing release is reported and the rest still run', function()
-    local clock, messages, cleanup = Scheduler.new(1), {}, 0
+    local clock, messages, cleanup = Scheduler.new({step = 1}), {}, 0
     local buffs, u = quiet(clock, function(message) messages[#messages + 1] = message end), newUnit()
     local buff = buffs:apply(u, {id = 'cleanup', kind = 'active', duration = 1, onApply = function(b)
         b:own(function() cleanup = cleanup + 1 end)
@@ -63,7 +63,7 @@ test('a failing release is reported and the rest still run', function()
 end)
 
 test('periodic buffs tick, report remaining time and stop on removal', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local buffs, u, ticks = quiet(clock), newUnit(), 0
     local dot = {id = 'dot', kind = 'active', duration = 3, interval = 1, onTick = function() ticks = ticks + 1 end}
     local buff = buffs:apply(u, dot)
@@ -78,7 +78,7 @@ test('periodic buffs tick, report remaining time and stop on removal', function(
 end)
 
 test('a failing tick or onApply removes the buff with reason error', function()
-    local clock, messages, reasons = Scheduler.new(1), {}, {}
+    local clock, messages, reasons = Scheduler.new({step = 1}), {}, {}
     local buffs, u = quiet(clock, function(message) messages[#messages + 1] = message end), newUnit()
     local record = function(_, reason) reasons[#reasons + 1] = reason end
     local buff = buffs:apply(u, {id = 'x', kind = 'active', interval = 1,
@@ -93,7 +93,7 @@ test('a failing tick or onApply removes the buff with reason error', function()
 end)
 
 test('lookups, replace and one definition per key', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local buffs, u, other = quiet(clock), newUnit(), newUnit()
     local sunder = {id = 'sunder', kind = 'active', stacking = 'stack', maxStacks = 5}
     buffs:apply(u, sunder, 'a'); buffs:apply(u, sunder, 'a'); buffs:apply(u, sunder, 'b')
@@ -118,7 +118,7 @@ test('the poll clears removed, disposed and dead units; passive buffs survive de
     native('GetUnitTypeId', function(raw) return raw.gone and 0 or 1 end)
     native('UnitAlive', function(raw) return not raw.dead end)
     native('RemoveUnit', function() end)
-    local clock, reasons = Scheduler.new(0.25), {}
+    local clock, reasons = Scheduler.new({step = 0.25}), {}
     local function track(name)
         return {id = name, kind = 'active',
             onRemove = function(_, reason) reasons[#reasons + 1] = name .. ':' .. reason end}
@@ -142,7 +142,7 @@ test('the poll clears removed, disposed and dead units; passive buffs survive de
 end)
 
 test('arguments are checked at the caller', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     failsAt(function() BuffStore.new({}) end, 'BuffStore.new: expected Scheduler')
     failsAt(function() BuffStore.new(clock, 5) end, 'BuffStore.new: expected an options table')
     failsAt(function() BuffStore.new(clock, {pollInterval = 0}) end,

@@ -53,7 +53,7 @@ eq(totalCalls(), 0)
 local function setup(step, options)
     world, effects, queries, ranges = {}, {}, {}, {}
     ground = function() return 0 end
-    local clock = Scheduler.new(step or 1)
+    local clock = Scheduler.new({step = step or 1})
     local merged = {targetOffset = 0, maxTargetRadius = 16}
     for key, value in pairs(options or {}) do merged[key] = value end
     resetCalls()
@@ -483,7 +483,7 @@ test('launch copies the request, and a missile carries its data', function()
 end)
 
 test('new and the missile methods check their arguments at the caller', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     failsAt(function() Missiles.new({}) end, 'Missiles.new: expected Scheduler')
     failsAt(function() Missiles.new(clock, 5) end, 'Missiles.new: expected an options table')
     failsAt(function() Missiles.new(clock, {onError = 5}) end, 'Missiles.new: expected a callback function')

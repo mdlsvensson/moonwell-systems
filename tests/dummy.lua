@@ -34,7 +34,7 @@ local function request(fields)
 end
 
 test('a lease lives through its duration and cleans up once; the dummy is configured', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local dummies = Dummies.new(clock)
     local lease = dummies:cast(request())
     local raw = lease:getUnit().handle
@@ -49,7 +49,7 @@ test('a lease lives through its duration and cleans up once; the dummy is config
 end)
 
 test('a missing ability and a rejected order remove the dummy at once', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local dummies = Dummies.new(clock)
     failsAt(function() dummies:cast(request({ability = MISSING})) end,
         'Dummies.cast: the dummy cannot get ability 666')
@@ -62,7 +62,7 @@ test('a missing ability and a rejected order remove the dummy at once', function
 end)
 
 test('dispose removes every dummy in cast order and refuses new casts', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local dummies = Dummies.new(clock)
     local first = dummies:cast(request({duration = 4})):getUnit().handle
     local second = dummies:cast(request({duration = 4})):getUnit().handle
@@ -74,7 +74,7 @@ test('dispose removes every dummy in cast order and refuses new casts', function
 end)
 
 test('dummies attribute to their caster only while leased', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local dummies = Dummies.new(clock)
     local hero = Unit.fromHandle({})
     local lease = dummies:cast(request({source = hero}))
@@ -86,7 +86,7 @@ test('dummies attribute to their caster only while leased', function()
 end)
 
 test('point, target, order ids, level and facing reach the natives', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local dummies = Dummies.new(clock)
     local raw = dummies:cast(request({point = {x = 5, y = 6}, level = 3, facing = 90})):getUnit().handle
     eq(raw.issued[1], 'IssuePointOrder'); eq(raw.issued[3], 5); eq(raw.issued[4], 6)
@@ -103,7 +103,7 @@ test('point, target, order ids, level and facing reach the natives', function()
 end)
 
 test('a dummy removed by other code is not removed again', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     local dummies = Dummies.new(clock)
     local lease = dummies:cast(request())
     lease:getUnit():remove()
@@ -112,7 +112,7 @@ test('a dummy removed by other code is not removed again', function()
 end)
 
 test('arguments are checked at the caller', function()
-    local clock = Scheduler.new(1)
+    local clock = Scheduler.new({step = 1})
     failsAt(function() Dummies.new({}) end, 'Dummies.new: expected Scheduler')
     failsAt(function() Dummies.new(clock, 5) end, 'Dummies.new: expected an options table')
     failsAt(function() Dummies.new(clock, {onError = 5}) end, 'Dummies.new: expected a callback function')
