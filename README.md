@@ -45,8 +45,8 @@ still has it keeps working.
   `[systems] BuffStore.new: expected an options table`.
 - **Typos are caught.** Options and requests refuse a key they do not define (`unknown key 'maxHit'`); buff
   definitions are open for the map's own fields. A wrong value names its key:
-  `[systems] Missiles.launch: 'maxHits' expected a whole number of at least 1`. When several keys are wrong, the first
-  in sorted order is named, the same on every machine.
+  `[systems] Missiles.launch: 'maxHits' expected a whole number of at least 1`. An unknown key is named before a
+  wrong value; among several of either, the first in sorted order is named, the same on every machine.
 - **Deterministic.** Ties break by creation order, never by handle ids.
 - **32-bit numbers.** Warcraft's integers wrap silently past 2,147,483,647 and floats are single precision.
 
@@ -175,7 +175,8 @@ buffs\apply footman, slow, caster
 
 Each emitter (`source`) owns its instances, so two auras with the same definition never remove each other's buffs. The
 query decides range, team and visibility. Return the Units in the engine's enumeration order (for example
-`group:getUnits()`), which is the same on every machine.
+`group:getUnits()`), which is the same on every machine. An aura applies its definition from inside `update`, behind the
+callback boundary: a wrong field in the definition does not raise there, it goes to `onError` (or is printed).
 
 ```yue
 import "systems.aura" as Aura

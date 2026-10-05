@@ -2,19 +2,20 @@
 
 ## Unreleased
 
-A refactor for consistency (spec `2026-10-05-moonwell-systems-refactor-design` in the workspace). It breaks every
-constructor call; nothing else a map sees changes, and every save code of 0.5 still decodes.
+A refactor for consistency (spec `2026-10-05-moonwell-systems-refactor-design` in the workspace). It changes the
+call of every constructor that took positional arguments, renames `Buff:remove`, takes the argument away from
+`aura:start()`, and makes options and requests refuse unknown keys. Every save code of 0.5 still decodes.
 
 - Every constructor takes one options table; a system that needs a scheduler names it `clock`.
-- Options and requests refuse a key they do not define: `unknown key 'maxHit'`. When several are wrong, the first in
-  sorted order is named, the same on every machine. Buff definitions stay open for a map's own fields. The codec
-  refuses unknown keys in its options, schemas and fields.
+- Options and requests refuse a key they do not define: `unknown key 'maxHit'`. An unknown key is named
+  before a wrong value; among several of either, the first in sorted order is named, the same on every machine. Buff
+  definitions stay open for a map's own fields. The codec refuses unknown keys in its options, schemas and fields.
 - Field errors name the key: `[systems] Missiles.launch: 'maxHits' expected a whole number of at least 1`.
 - `Buff:remove(reason)` is now `Buff:dispose(reason)`, so everything a map owns ends with `dispose()`.
 - `Aura.new` takes `interval`; `aura:start()` takes no argument.
 - A buff definition is checked when first applied, not on every apply.
-- `Signal:emit`, the buff store's poll and `Sync:dispose` no longer allocate per listener, per unit or per past
-  request.
+- `Signal:emit` and the buff store's poll no longer allocate per listener or per unit, and `Sync:dispose` visits only
+  the requests still open, not every one ever issued.
 
 ### Migrating from 0.5
 
