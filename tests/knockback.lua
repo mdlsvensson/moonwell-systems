@@ -285,6 +285,64 @@ test('the system ticks only while units are pushed, and dispose releases the han
     eq(clock:getPending(), 0); eq(callCount('RemoveItem'), 1); eq(callCount('RemoveRect'), 1)
 end)
 
+test('a knockback applied in a callback during a tick waits for the next step', function()
+    local system, clock = setup(0.5)
+    local unit, raw = footman()
+    local other, otherRaw = footman()
+    local again, child
+    system:apply(unit, push({duration = 0.5, onEnd = function()
+        again = system:apply(unit, push({angle = math.pi / 2, distance = 20}))
+        child = system:apply(other, push({angle = math.pi / 2, distance = 20}))
+    end}))
+    clock:advance()
+    near(raw.x, 10); eq(raw.y, 0); eq(otherRaw.y, 0)
+    eq(again:isActive(), true); eq(child:isActive(), true); eq(again:getRemaining(), 1); eq(child:getRemaining(), 1)
+    eq(system:getCount(), 2); eq(clock:getPending(), 1)
+    clock:advance()
+    near(raw.y, 10); near(otherRaw.y, 10); eq(again:getRemaining(), 0.5); eq(child:getRemaining(), 0.5)
+    clock:advance()
+    near(raw.y, 20); near(otherRaw.y, 20); eq(again:isActive(), false); eq(child:isActive(), false)
+    eq(system:getCount(), 0); eq(clock:getPending(), 0); eq(#PRINTED, 0)
+end)
+
+test('dispose inside a callback during a tick ends every knockback and removes the handles', function()
+    local system, clock = setup(0.5)
+    local reasons, after = {}, nil
+    local first, firstRaw = footman()
+    local second, secondRaw = footman()
+    system:apply(first, push({duration = 0.5, onEnd = function(_, reason)
+        reasons[#reasons + 1] = reason
+        system:dispose()
+        after = totalCalls()
+    end}))
+    local waiting = system:apply(second, push({onEnd = recorder(reasons)}))
+    system:apply(footman(), push({onEnd = recorder(reasons)}))
+    clock:advance()
+    eq(join(reasons), 'completed,disposed,disposed'); eq(system:getCount(), 0); eq(clock:getPending(), 0)
+    near(firstRaw.x, 10); eq(secondRaw.x, 0); eq(waiting:isActive(), false)
+    eq(callCount('SetUnitX'), 1); eq(callCount('UnitAlive'), 1); eq(callCount('RemoveItem'), 1)
+    eq(callCount('RemoveRect'), 2) -- the world bounds' rect, read on the first move, and the probe's own
+    eq(totalCalls(), after) -- the units after the first were not read or moved
+    clock:advance()
+    eq(totalCalls(), after)
+    failsAt(function() system:apply(first, push()) end, 'Knockbacks.apply: the system is disposed')
+    eq(#PRINTED, 0)
+    -- From the pathing function, before any unit moved: the knockback being checked ends with 'disposed' too.
+    local quitting, quitClock
+    reasons, after = {}, nil
+    quitting, quitClock = setup(0.5, {pathing = function()
+        quitting:dispose()
+        after = totalCalls()
+        return true
+    end})
+    local still, stillRaw = footman()
+    quitting:apply(still, push({onEnd = recorder(reasons)}))
+    quitting:apply(footman(), push({onEnd = recorder(reasons)}))
+    quitClock:advance(); quitClock:advance()
+    eq(join(reasons), 'disposed,disposed'); eq(quitting:getCount(), 0); eq(quitClock:getPending(), 0)
+    eq(stillRaw.x, 0); eq(callCount('SetUnitX'), 0); eq(totalCalls(), after); eq(#PRINTED, 0)
+end)
+
 test('arguments are checked at the caller', function()
     local clock = Scheduler.new({step = 1})
     failsAt(function() Knockbacks.new({}) end, "Knockbacks.new: 'clock' expected a Scheduler")
@@ -294,6 +352,8 @@ test('arguments are checked at the caller', function()
         "Knockbacks.new: 'pathing' expected 'obstacles', 'terrain', 'none' or a function")
     failsAt(function() Knockbacks.new({clock = clock, sampleStep = 0}) end,
         "Knockbacks.new: 'sampleStep' expected a finite positive number")
+    failsAt(function() Knockbacks.new({clock = clock, sampleStepp = 16}) end,
+        "[systems] Knockbacks.new: unknown key 'sampleStepp'")
     local system = setup()
     local unit = footman()
     local gone = footman()

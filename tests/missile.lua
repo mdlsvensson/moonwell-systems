@@ -454,6 +454,7 @@ test('launch checks its request at the caller, before any effect is created', fu
         {'x', {x = '0'}}, {'y', {y = 0 / 0}}, {'vx', {vx = math.huge}}, {'vy', {vy = false}}, {'radius', {radius = -1}},
         {'lifetime', {lifetime = 0}}, {'height', {height = 'high'}}, {'vz', {vz = {}}}, {'az', {az = '1'}},
         {'maxRange', {maxRange = 0}}, {'maxHits', {maxHits = 0}}, {'maxHits', {maxHits = 1.5}},
+        {'maxHits', {maxHits = math.huge}}, -- a cap is a finite whole number: no "no cap"
         {'vx', {vx = 1e200}}, {'ax', {ax = 1e200}}, {'followGround', {followGround = 1}},
         {'face', {face = 'yes'}}, {'model', {model = ''}}, {'model', {model = 5}}, {'effect', {effect = {}}},
         {'effect', {effect = gone}}, {'effect', {model = 'bolt.mdl', effect = own}},
@@ -492,6 +493,8 @@ test('new and the missile methods check their arguments at the caller', function
         failsAt(function() Missiles.new({clock = clock, [case[1]] = case[2]}) end,
             "Missiles.new: '" .. case[1] .. "'")
     end
+    failsAt(function() Missiles.new({clock = clock, targetOfset = 0}) end,
+        "[systems] Missiles.new: unknown key 'targetOfset'")
     local system = setup()
     local missile = system:launch(shot())
     failsAt(function() missile:setVelocity(1, 2) end, 'Missile.setVelocity: expected a finite velocity')

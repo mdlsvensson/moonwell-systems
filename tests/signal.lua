@@ -50,6 +50,7 @@ end)
 
 test('arguments are checked at the caller', function()
     failsAt(function() Signal.new({onError = 5}) end, "Signal.new: 'onError' expected a function")
+    failsAt(function() Signal.new({onEror = print}) end, "[systems] Signal.new: unknown key 'onEror'")
     local signal = Signal.new()
     failsAt(function() signal:subscribe(nil) end, 'Signal.subscribe: expected a callback function')
     failsAt(function() signal:subscribe(print, 'high') end, 'Signal.subscribe: expected a finite priority')

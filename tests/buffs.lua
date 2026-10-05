@@ -156,6 +156,7 @@ test('arguments are checked at the caller', function()
         {'id', {id = '', kind = 'active'}}, {'kind', {id = 'x', kind = 'weird'}},
         {'stacking', {id = 'x', kind = 'active', stacking = 'pile'}},
         {'maxStacks', {id = 'x', kind = 'active', maxStacks = 0}},
+        {'maxStacks', {id = 'x', kind = 'active', maxStacks = math.huge}}, -- a cap is finite: no "no cap"
         {'duration', {id = 'x', kind = 'active', duration = -1}},
         {'interval', {id = 'x', kind = 'active', interval = 0}},
         {'removeOnDeath', {id = 'x', kind = 'active', removeOnDeath = 'yes'}},

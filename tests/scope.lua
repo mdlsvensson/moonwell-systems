@@ -42,6 +42,7 @@ end)
 
 test('arguments are checked at the caller', function()
     failsAt(function() Scope.new({onError = 'x'}) end, "Scope.new: 'onError' expected a function")
+    failsAt(function() Scope.new({onEror = print}) end, "[systems] Scope.new: unknown key 'onEror'")
     local scope = Scope.new()
     failsAt(function() scope:own(5) end, 'Scope.own: expected a callback function')
     failsAt(function() scope:add({}) end, 'Scope.add: expected a value with dispose, destroy or remove')

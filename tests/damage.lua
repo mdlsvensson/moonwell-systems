@@ -404,7 +404,9 @@ end)
 
 test('new and the listener functions check their arguments at the caller', function()
     failsAt(function() DamageSystem.new(5) end, 'DamageSystem.new: expected an options table')
-    local cases = {{'sourceOf', 5}, {'onError', 'x'}, {'maxQueue', 0}, {'maxChain', 1.5}, {'maxPending', '2'}}
+    local cases = {{'sourceOf', 5}, {'onError', 'x'}, {'maxQueue', 0}, {'maxChain', 1.5}, {'maxPending', '2'},
+        -- A cap is a finite whole number: no "no cap".
+        {'maxQueue', math.huge}, {'maxChain', math.huge}, {'maxPending', math.huge}}
     for _, case in ipairs(cases) do
         failsAt(function() DamageSystem.new({[case[1]] = case[2]}) end,
             "DamageSystem.new: '" .. case[1] .. "'")

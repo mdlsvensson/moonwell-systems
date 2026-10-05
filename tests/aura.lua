@@ -71,5 +71,7 @@ test('arguments are checked at the caller', function()
         "Aura.new: 'onError' expected a function")
     failsAt(function() Aura.new({store = buffs, definition = devotion, query = query, interval = 0}) end,
         "Aura.new: 'interval' expected a finite positive number")
+    failsAt(function() Aura.new({store = buffs, definition = devotion, query = query, intervall = 1}) end,
+        "[systems] Aura.new: unknown key 'intervall'")
     failsAt(function() Aura.update({}) end, 'Aura.update: expected Aura')
 end)
