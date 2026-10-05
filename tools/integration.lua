@@ -115,7 +115,7 @@ local entries = {
         .. 'c = Codec.new version: 1, secret: "s", schemas: {{version: 1, fields: {}}}\nprint c\\getVersion!\n',
         systems = {}, wrappers = {}},
     sync = {source = 'import "systems.sync" as Sync\nimport "systems.scheduler" as Scheduler\n'
-        .. 's = Sync.new Scheduler.new!\ns\\dispose!\n', systems = {scheduler = true},
+        .. 's = Sync.new clock: Scheduler.new!\ns\\dispose!\n', systems = {scheduler = true},
         wrappers = {timer = true, player = true, sync = true}},
     savefile = {source = 'import "systems.savefile" as Savefile\nprint Savefile\n',
         systems = {codec = true, sync = true, scheduler = true},

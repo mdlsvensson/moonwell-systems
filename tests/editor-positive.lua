@@ -99,10 +99,10 @@ local codec = Codec.new({version = 2, secret = 'k3-vale-of-ash', schemas = {
 local code = codec:encode({gold = 500, items = {1, 2}, name = 'Hero', hardMode = true}, owner:getName())
 local decoded, why, detail = codec:decode(code, owner:getName())
 print(decoded and decoded.gold, why, detail, codec:getVersion(), codec:getMaxLength())
-local sync = scope:add(Sync.new(clock, {prefix = 'ask', timeout = 5, maxLength = 100}))
+local sync = scope:add(Sync.new({clock = clock, prefix = 'ask', timeout = 5, maxLength = 100}))
 sync:start()
 sync:ask(owner, function() return tostring(Time.localUtc()) end, function(text, reason) print(text, reason) end)
-local saves = scope:add(Savefile.new(clock, {codec = codec, folder = 'Vale', prefix = 'save', timeout = 5,
+local saves = scope:add(Savefile.new({clock = clock, codec = codec, folder = 'Vale', prefix = 'save', timeout = 5,
     abilities = {1097690227, 1097035619}, onError = print}))
 saves:start()
 saves:save(owner, 'slot1', {gold = 1, items = {}, name = '', hardMode = false})

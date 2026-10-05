@@ -1,5 +1,7 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
+local Ordered = require('systems.internal.ordered')
 local Scheduler = require('systems.scheduler')
 local Player = require('wrappers.player')
 local Messages = require('wrappers.sync')
@@ -13,7 +15,7 @@ local Messages = require('wrappers.sync')
 ---@field package timeout number
 ---@field package maxLength integer
 ---@field package onError (fun(message: string): ...)?
----@field package requests table<integer, MoonwellSystems.SyncRequest> Open requests by number; never iterated.
+---@field package requests MoonwellSystems.Ordered Open requests by number, in asking order.
 ---@field package nextRequest integer
 ---@field package listener MoonwellWrappers.SyncListener? Nil until start().
 ---@field package disposed boolean
@@ -31,6 +33,7 @@ Sync.__index = Sync
 ---@field length integer
 
 ---@class MoonwellSystems.SyncOptions
+---@field clock MoonwellSystems.Scheduler Times the requests out; it must run on every machine alike.
 ---@field prefix string? The sync prefix; 1 to 32 letters, digits, `-` or `_`. Default `"mwsync"`.
 ---@field timeout number? Scheduler seconds a request waits for its answer. Default 10.
 ---@field maxLength integer? The longest text an answer may be, in bytes; at most 65535. Default 8192.
@@ -40,13 +43,21 @@ Sync.__index = Sync
 local PIECE = 220
 local MAX_LENGTH = 65535
 
+local OPTIONS = {
+    clock = {Fields.class(Scheduler, 'a Scheduler'), required = true},
+    prefix = {'identifier', default = 'mwsync'},
+    timeout = {'positive', default = 10},
+    maxLength = {Fields.integer(1, MAX_LENGTH), default = 8192},
+    onError = {'function'},
+}
+
 ---Ends an open request: forgets it, cancels its timeout and runs `receive` behind the boundary.
 ---@param system MoonwellSystems.Sync
 ---@param request MoonwellSystems.SyncRequest
 ---@param text string?
 ---@param reason string?
 local function finish(system, request, text, reason)
-    system.requests[request.id] = nil
+    system.requests:delete(request.id)
     local cancel = request.cancel
     request.cancel = nil
     if cancel then cancel() end
@@ -109,7 +120,7 @@ local function arrived(system, sender, data)
     local idText, indexText, countText, payload = data:match('^(%d+)%.(%d+)%.(%d+)%.(.*)$')
     if not idText then return end
     local id = number(idText, 999999999)
-    local request = id and system.requests[id]
+    local request = id and system.requests:get(id)
     -- Only the asked player's packets for an open request are taken.
     if not request or sender ~= request.player then return end
     local index, count = number(indexText, 999), number(countText, 999)
@@ -131,34 +142,13 @@ local function arrived(system, sender, data)
     finish(system, request, nil, 'error')
 end
 
----@param value unknown
----@return boolean
-local function identifier(value)
-    return type(value) == 'string' and #value >= 1 and #value <= 32 and value:find('^[A-Za-z0-9_-]+$') ~= nil
-end
-
----@param clock MoonwellSystems.Scheduler Times the requests out; it must run on every machine alike.
----@param options MoonwellSystems.SyncOptions?
+---@param options MoonwellSystems.SyncOptions
 ---@return MoonwellSystems.Sync
-function Sync.new(clock, options)
-    Check.receiver(clock, Scheduler, 'Scheduler', 'Sync.new')
-    if options == nil then options = {} end
-    if type(options) ~= 'table' then error('[systems] Sync.new: expected an options table', 2) end
-    local prefix, timeout, maxLength = options.prefix, options.timeout, options.maxLength
-    if prefix == nil then prefix = 'mwsync' end
-    if not identifier(prefix) then
-        error('[systems] Sync.new: expected a prefix of 1 to 32 letters, digits, - or _', 2)
-    end
-    if timeout == nil then timeout = 10 end
-    if not Check.finite(timeout) or timeout <= 0 then error('[systems] Sync.new: expected a positive timeout', 2) end
-    if maxLength == nil then maxLength = 8192 end
-    if type(maxLength) ~= 'number' or not math.tointeger(maxLength) or maxLength < 1 or maxLength > MAX_LENGTH then
-        error('[systems] Sync.new: expected maxLength: a whole number from 1 to ' .. MAX_LENGTH, 2)
-    end
-    Callback.optional(options.onError, 'Sync.new')
+function Sync.new(options)
+    local read = Fields.options(options, OPTIONS, 'Sync.new')
     return setmetatable({
-        clock = clock, prefix = prefix, timeout = timeout, maxLength = math.tointeger(maxLength),
-        onError = options.onError, requests = {}, nextRequest = 1, disposed = false,
+        clock = read.clock, prefix = read.prefix, timeout = read.timeout, maxLength = math.tointeger(read.maxLength),
+        onError = read.onError, requests = Ordered.new(), nextRequest = 1, disposed = false,
     }, Sync)
 end
 
@@ -186,7 +176,7 @@ function Sync:ask(player, read, receive)
     local request = {id = system.nextRequest, player = player, receive = receive, pieces = {}, count = 0,
         received = 0, length = 0}
     system.nextRequest = request.id + 1
-    system.requests[request.id] = request
+    system.requests:set(request.id, request)
     -- Both are the same on every machine: whether a human plays in the slot.
     if player:getController() ~= MAP_CONTROL_USER or player:getSlotState() ~= PLAYER_SLOT_STATE_PLAYING then
         request.cancel = system.clock:after(0, function()
@@ -209,10 +199,7 @@ function Sync:dispose()
     if system.disposed then return end
     system.disposed = true
     if system.listener then Messages.off(system.listener); system.listener = nil end
-    for id = 1, system.nextRequest - 1 do
-        local request = system.requests[id]
-        if request then finish(system, request, nil, 'disposed') end
-    end
+    system.requests:each(function(_, request) finish(system, request, nil, 'disposed') end)
 end
 
 return Sync

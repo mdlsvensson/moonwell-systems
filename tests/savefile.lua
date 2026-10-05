@@ -90,9 +90,9 @@ local function setup(me, options, fresh)
     here, sent, texts, dead = slots[me or 0], {}, {}, {}
     if fresh ~= false then files = {} end
     local clock = Scheduler.new({step = 1})
-    local merged = {codec = codec(), folder = 'Vale'}
+    local merged = {clock = clock, codec = codec(), folder = 'Vale'}
     for key, value in pairs(options or {}) do merged[key] = value end
-    local saves = Savefile.new(clock, merged)
+    local saves = Savefile.new(merged)
     saves:start()
     resetCalls()
     return saves, clock, Players.fromIndex(0), Players.fromIndex(1)
@@ -264,7 +264,7 @@ test('start checks every borrowed ability, and save and load need it', function(
     here, texts, dead = slots[0], {}, {}
     local me = Players.fromIndex(0)
     -- A prefix of its own: the wrappers keep one trigger per prefix, and other tests made the default one.
-    local saves = Savefile.new(clock, {codec = codec(), folder = 'Vale', prefix = 'starts'})
+    local saves = Savefile.new({clock = clock, codec = codec(), folder = 'Vale', prefix = 'starts'})
     failsAt(function() saves:save(me, 'slot1', {gold = 1, items = {}}) end,
         '[systems] Savefile.save: call start() first')
     failsAt(function() saves:load(me, 'slot1', print) end, '[systems] Savefile.load: call start() first')
@@ -279,7 +279,8 @@ test('start checks every borrowed ability, and save and load need it', function(
     saves:start()
     eq(totalCalls(), 0) -- a second start does nothing
     -- A map's own list replaces the default.
-    local own = Savefile.new(clock, {codec = codec(), folder = 'Vale', abilities = {5, 6.0}, prefix = 'own'})
+    local own = Savefile.new({clock = clock, codec = codec(), folder = 'Vale', abilities = {5, 6.0},
+        prefix = 'own'})
     own:start()
     own:save(me, 'slot1', {gold = 1, items = {}})
     eq(files['Vale\\slot1.pld'][1]:match('%((%d+),'), '5')
@@ -315,37 +316,36 @@ end)
 test('new, save and load check their arguments at the caller', function()
     local clock = Scheduler.new({step = 1})
     local function with(overrides)
-        local options = {codec = codec(), folder = 'Vale'}
+        local options = {clock = clock, codec = codec(), folder = 'Vale'}
         for key, value in pairs(overrides) do options[key] = value ~= 'none' and value or nil end
-        return function() Savefile.new(clock, options) end
+        return function() Savefile.new(options) end
     end
-    failsAt(function() Savefile.new({}, {}) end, '[systems] Savefile.new: expected Scheduler')
+    failsAt(function() Savefile.new({codec = codec(), folder = 'Vale'}) end,
+        "[systems] Savefile.new: 'clock' expected a Scheduler")
     failsAt(function() Savefile.new(clock) end, '[systems] Savefile.new: expected an options table')
-    failsAt(with({codec = 'none'}), '[systems] Savefile.new: expected a codec')
-    failsAt(with({codec = {}}), '[systems] Savefile.new: expected a codec')
+    failsAt(with({codec = 'none'}), "[systems] Savefile.new: 'codec' expected a Codec")
+    failsAt(with({codec = {}}), "[systems] Savefile.new: 'codec' expected a Codec")
     for _, folder in ipairs({'none', '', 'two words', 'a\\b', 'a.b', string.rep('f', 33), 5}) do
-        failsAt(with({folder = folder}), '[systems] Savefile.new: expected a folder of 1 to 32 letters, digits, - or _')
+        failsAt(with({folder = folder}), "[systems] Savefile.new: 'folder' expected 1 to 32 letters, digits, - or _")
     end
-    for _, abilities in ipairs({5, {}}) do
-        failsAt(with({abilities = abilities}), '[systems] Savefile.new: expected abilities: a list of ability ids')
-    end
-    for _, abilities in ipairs({{'Amls'}, {1.5}, {0}, {7, 7}, {7, -1}}) do
+    for _, abilities in ipairs({5, {}, {'Amls'}, {1.5}, {0}, {7, 7}, {7, -1}}) do
         failsAt(with({abilities = abilities}),
-            '[systems] Savefile.new: expected abilities: a list of ability ids, each once')
+            "[systems] Savefile.new: 'abilities' expected a list of ability ids, each once")
     end
     local big = Codec.new({version = 1, secret = 's', schemas = {{version = 1, fields = {
         {key = 'a', kind = 'string', maxLength = 300}}}}})
     failsAt(with({codec = big, abilities = {7}}),
         "[systems] Savefile.new: the codec's longest code is 410 symbols, but the abilities hold 370")
-    Savefile.new(clock, {codec = big, folder = 'Vale', abilities = {7, 8}})
+    Savefile.new({clock = clock, codec = big, folder = 'Vale', abilities = {7, 8}})
     -- An older schema's longer code counts too: a file from that version must still be readable.
     local shrunk = Codec.new({version = 2, secret = 's', schemas = {{version = 2, fields = {}},
         {version = 1, fields = {{key = 'a', kind = 'string', maxLength = 300}}, migrate = function() return {} end}}})
     failsAt(with({codec = shrunk, abilities = {7}}), 'longest code is 410 symbols')
     failsAt(with({prefix = 'two words'}),
-        '[systems] Savefile.new: expected a prefix of 1 to 32 letters, digits, - or _')
-    failsAt(with({timeout = 0}), '[systems] Savefile.new: expected a positive timeout')
-    failsAt(with({onError = 5}), '[systems] Savefile.new: expected a callback function')
+        "[systems] Savefile.new: 'prefix' expected 1 to 32 letters, digits, - or _")
+    failsAt(with({timeout = 0}), "[systems] Savefile.new: 'timeout' expected a finite positive number")
+    failsAt(with({onError = 5}), "[systems] Savefile.new: 'onError' expected a function")
+    failsAt(with({slot = 'a'}), "[systems] Savefile.new: unknown key 'slot'")
     local saves, _, me = setup(0)
     for _, slot in ipairs({'', 'two words', 'a\\b', '..', string.rep('s', 33), 5}) do
         failsAt(function() saves:save(me, slot, {gold = 1, items = {}}) end,

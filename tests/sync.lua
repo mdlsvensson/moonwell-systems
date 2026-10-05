@@ -51,7 +51,9 @@ local function setup(me, options)
     for index = 0, 27 do slots[index].controller, slots[index].state = MAP_CONTROL_USER, PLAYER_SLOT_STATE_PLAYING end
     here, sent, accepts = slots[me or 0], {}, true
     local clock = Scheduler.new({step = 1})
-    local system = Sync.new(clock, options)
+    local merged = {clock = clock}
+    for key, value in pairs(options or {}) do merged[key] = value end
+    local system = Sync.new(merged)
     system:start()
     resetCalls()
     return system, clock, Players.fromIndex(0), Players.fromIndex(1)
@@ -268,7 +270,7 @@ test('dispose ends the open requests in order, stops listening, and is idempoten
     failsAt(function() system:ask(me, never, never) end, '[systems] Sync.ask: the system is disposed')
     failsAt(function() system:start() end, '[systems] Sync.start: the system is disposed')
     -- A system that never started disposes too.
-    Sync.new(clock):dispose()
+    Sync.new({clock = clock}):dispose()
 end)
 
 test('failures are printed, or go to onError, and nothing is rethrown', function()
@@ -296,22 +298,25 @@ end)
 
 test('new, start and ask check their arguments at the caller', function()
     local clock = Scheduler.new({step = 1})
-    failsAt(function() Sync.new({}) end, '[systems] Sync.new: expected Scheduler')
-    failsAt(function() Sync.new(clock, 5) end, '[systems] Sync.new: expected an options table')
+    failsAt(function() Sync.new(clock) end, '[systems] Sync.new: expected an options table')
+    failsAt(function() Sync.new(5) end, '[systems] Sync.new: expected an options table')
+    failsAt(function() Sync.new({}) end, "[systems] Sync.new: 'clock' expected a Scheduler")
     for _, prefix in ipairs({'', 5, 'two words', 'dot.ted', string.rep('p', 33)}) do
-        failsAt(function() Sync.new(clock, {prefix = prefix}) end,
-            '[systems] Sync.new: expected a prefix of 1 to 32 letters, digits, - or _')
+        failsAt(function() Sync.new({clock = clock, prefix = prefix}) end,
+            "[systems] Sync.new: 'prefix' expected 1 to 32 letters, digits, - or _")
     end
     for _, timeout in ipairs({0, -1, 'soon', math.huge}) do
-        failsAt(function() Sync.new(clock, {timeout = timeout}) end, '[systems] Sync.new: expected a positive timeout')
+        failsAt(function() Sync.new({clock = clock, timeout = timeout}) end,
+            "[systems] Sync.new: 'timeout' expected a finite positive number")
     end
     for _, maxLength in ipairs({0, 65536, 1.5, '8'}) do
-        failsAt(function() Sync.new(clock, {maxLength = maxLength}) end,
-            '[systems] Sync.new: expected maxLength: a whole number from 1 to 65535')
+        failsAt(function() Sync.new({clock = clock, maxLength = maxLength}) end,
+            "[systems] Sync.new: 'maxLength' expected a whole number from 1 to 65535")
     end
-    failsAt(function() Sync.new(clock, {onError = 5}) end, '[systems] Sync.new: expected a callback function')
+    failsAt(function() Sync.new({clock = clock, onError = 5}) end, "[systems] Sync.new: 'onError' expected a function")
+    failsAt(function() Sync.new({clock = clock, timeOut = 1}) end, "[systems] Sync.new: unknown key 'timeOut'")
     here = slots[0]
-    local system = Sync.new(clock, {prefix = string.rep('p', 32), maxLength = 65535, timeout = 0.5})
+    local system = Sync.new({clock = clock, prefix = string.rep('p', 32), maxLength = 65535, timeout = 0.5})
     local me = Players.fromIndex(0)
     failsAt(function() system:ask(me, never, never) end, '[systems] Sync.ask: call start() first')
     system:start(); system:start()
@@ -325,4 +330,20 @@ test('new, start and ask check their arguments at the caller', function()
     eq(clock:getPending(), 0) -- a refused ask opens no request
     system:dispose()
     eq(callCount('DisableTrigger'), 1) -- two starts made one listener, and it is gone
+end)
+
+test('dispose ends only the open requests, in asking order', function()
+    local system, clock, _, other = setup(0)
+    slots[2].controller = MAP_CONTROL_COMPUTER
+    local absent = Players.fromIndex(2)
+    local ends = {}
+    -- three requests to an absent player end on the next tick; then two open ones to a human player
+    for index = 1, 3 do
+        system:ask(absent, never, function() ends[#ends + 1] = 'a' .. index end)
+    end
+    clock:advance()
+    system:ask(other, never, function(_, why) ends[#ends + 1] = 'h1:' .. why end)
+    system:ask(other, never, function(_, why) ends[#ends + 1] = 'h2:' .. why end)
+    system:dispose()
+    eq(table.concat(ends, ','), 'a1,a2,a3,h1:disposed,h2:disposed')
 end)

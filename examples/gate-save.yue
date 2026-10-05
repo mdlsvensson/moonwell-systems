@@ -80,7 +80,7 @@ saveGate = (owner) ->
   _, why = hero\decode heroCode, "Somebody else"
   say "4 another binding:", why
 
-  saves = Savefile.new clock, codec: hero, folder: FOLDER
+  saves = Savefile.new clock: clock, codec: hero, folder: FOLDER
   saves\start!
 
   -- 2. A round trip through the file and through sync.
@@ -107,7 +107,7 @@ saveGate = (owner) ->
       {key: "a", kind: "string", maxLength: 4095}
       {key: "b", kind: "string", maxLength: 2037}
     }}}
-    bigSaves = Savefile.new clock, codec: big, folder: FOLDER, prefix: "mwbig"
+    bigSaves = Savefile.new clock: clock, codec: big, folder: FOLDER, prefix: "mwbig"
     bigSaves\start!
     data = a: string.rep("\255", 4095), b: string.rep("z", 2037)
     started = os.clock!
@@ -126,7 +126,7 @@ saveGate = (owner) ->
     old = Codec.new version: 1, secret: SECRET, schemas: {
       {version: 1, fields: {{key: "gold", kind: "integer", min: 0, max: 100}}}
     }
-    oldSaves = Savefile.new clock, codec: old, folder: FOLDER, prefix: "mwold"
+    oldSaves = Savefile.new clock: clock, codec: old, folder: FOLDER, prefix: "mwold"
     oldSaves\start!
     oldSaves\save owner, "old", gold: 40
     oldSaves\dispose!
@@ -137,7 +137,7 @@ saveGate = (owner) ->
       }
       {version: 2, fields: {{key: "coins", kind: "integer", min: 0, max: 1000}}}
     }
-    newSaves = Savefile.new clock, codec: newer, folder: FOLDER, prefix: "mwnew"
+    newSaves = Savefile.new clock: clock, codec: newer, folder: FOLDER, prefix: "mwnew"
     newSaves\start!
     newSaves\load owner, "old", (data, reason) ->
       say "7 a migration: coins", data and data.coins, reason
@@ -145,7 +145,7 @@ saveGate = (owner) ->
 
   -- 8. Asking a machine for a local value, and a slot without a human. The second answer comes first: it needs no
   -- message.
-  sync = Sync.new clock
+  sync = Sync.new clock: clock
   sync\start!
   clock\after 6.5, ->
     sync\ask owner, (-> tostring Time.localUtc!), (text, reason) ->

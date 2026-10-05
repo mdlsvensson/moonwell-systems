@@ -39,8 +39,8 @@ local Sync = require('systems.sync')
 local Savefile = require('systems.savefile')
 Codec.new({version = '1', secret = 's', schemas = {}}) -- EXPECT assign-type-mismatch
 Codec.new({version = 1, secret = 's', schemas = {}}):encode('data') -- EXPECT param-type-mismatch
-Sync.new(clock):ask(clock, print, print) -- EXPECT param-type-mismatch
-Sync.new(clock, {timeout = 'soon'}) -- EXPECT assign-type-mismatch
-Savefile.new(clock, {codec = clock, folder = 'Vale'}) -- EXPECT assign-type-mismatch
-Savefile.new(clock):start() -- EXPECT missing-parameter
+Sync.new({clock = clock}):ask(clock, print, print) -- EXPECT param-type-mismatch
+Sync.new({clock = clock, timeout = 'soon'}) -- EXPECT assign-type-mismatch
+Savefile.new({clock = clock, codec = clock, folder = 'Vale'}) -- EXPECT assign-type-mismatch
+Savefile.new():start() -- EXPECT missing-parameter
 return true

@@ -39,7 +39,7 @@ mw.on_main ->
   codec = Codec.new
     version: 1, secret: "k3-vale-of-ash"
     schemas: {{version: 1, fields: {{key: "gold", kind: "integer", min: 0, max: 100}}}}
-  saves = scope\add Savefile.new clock, codec: codec, folder: "Vale"
+  saves = scope\add Savefile.new clock: clock, codec: codec, folder: "Vale"
   saves\start!
   owner = Player.fromIndex 0
   saves\save owner, "slot1", gold: 5
