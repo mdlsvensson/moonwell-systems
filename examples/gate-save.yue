@@ -1,7 +1,7 @@
--- The moonwell-systems persistence gate (release 5). Built by the gate map's `systems-save` run (../wrappers-gate,
--- yue -e gate.lua systems-save); CONTRIBUTING lists every expected message. Nothing needs watching: it starts just
--- after the map loads, and also writes its lines to CustomMapData\moonwell-systems-save.pld. Its save files go to
--- CustomMapData\moonwell-gate\.
+-- The moonwell-systems persistence gate (release 5). The maintainer builds a throwaway map from this file and runs it
+-- in game (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. Nothing needs watching:
+-- it starts just after the map loads, and also writes its lines to CustomMapData\moonwell-systems-save.pld. Its save
+-- files go to CustomMapData\moonwell-gate\.
 import "moonwell" as mw
 import "wrappers.player" as Player
 import "wrappers.timer" as Timer

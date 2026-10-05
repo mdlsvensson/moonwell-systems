@@ -1,7 +1,7 @@
--- The moonwell-systems knockback gate (release 4). Built by the gate map's `systems-knockback` run (../wrappers-gate,
--- yue -e gate.lua systems-knockback); CONTRIBUTING lists every expected message. One footman is pushed at a time, at
--- the centre of the screen, and each push is announced a second before it happens. It starts just after the map
--- loads, and also writes its lines to CustomMapData\moonwell-systems-knockback.pld.
+-- The moonwell-systems knockback gate (release 4). The maintainer builds a throwaway map from this file and runs it in
+-- game (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. One footman is pushed at a
+-- time, at the centre of the screen, and each push is announced a second before it happens. It starts just after the
+-- map loads, and also writes its lines to CustomMapData\moonwell-systems-knockback.pld.
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
 import "wrappers.player" as Player

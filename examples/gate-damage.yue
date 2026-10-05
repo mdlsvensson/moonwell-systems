@@ -1,6 +1,6 @@
--- The moonwell-systems damage gate (release 3). Built by the gate map's `systems-damage` run (../wrappers-gate,
--- yue -e gate.lua systems-damage); CONTRIBUTING lists every expected message. It starts just after the map loads.
--- The dummy type e000 comes from the map's object data (README, "The dummy unit type").
+-- The moonwell-systems damage gate (release 3). The maintainer builds a throwaway map from this file and runs it in
+-- game (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. It starts just after the map
+-- loads. The dummy type e000 comes from the map's object data (README, "The dummy unit type").
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
 import "wrappers.player" as Player

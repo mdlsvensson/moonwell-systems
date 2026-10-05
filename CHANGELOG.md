@@ -11,6 +11,9 @@ call of every constructor that took positional arguments, renames `Buff:remove`,
   before a wrong value; among several of either, the first in sorted order is named, the same on every machine. Buff
   definitions stay open for a map's own fields. The codec refuses unknown keys in its options, schemas and fields.
 - Field errors name the key: `[systems] Missiles.launch: 'maxHits' expected a whole number of at least 1`.
+- Five size caps must be finite whole numbers: `maxStacks` of a buff definition, `maxHits` of a missile request, and
+  `maxQueue`, `maxChain` and `maxPending` of `DamageSystem.new`. 0.5 accepted `math.huge` for them, which no document
+  offered. A map that passed `math.huge` for "no cap" passes a large number instead.
 - `Buff:remove(reason)` is now `Buff:dispose(reason)`, so everything a map owns ends with `dispose()`.
 - `Aura.new` takes `interval`; `aura:start()` takes no argument.
 - A buff definition is checked when first applied, not on every apply.

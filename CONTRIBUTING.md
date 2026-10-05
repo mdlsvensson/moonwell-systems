@@ -26,7 +26,8 @@ yue -e tools/integration.lua
 
 Integration makes a fresh ignored `.test-work/integration-*/consumer` with both libraries as local paths, checks and
 builds it normal and minified, runs LuaLS over the positive and negative fixtures and over `src/systems` against
-Moonwell's native declarations, checks that each entry point bundles only what it imports, and builds the gate example.
+Moonwell's native declarations, checks that each entry point bundles only what it imports, and builds the five gate
+examples, each with clean editor diagnostics.
 
 ## In-game release gate (maintainer)
 

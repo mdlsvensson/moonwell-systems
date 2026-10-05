@@ -1,5 +1,6 @@
--- The moonwell-systems in-game gate. Built by the gate map's `systems` run (../wrappers-gate, yue -e gate.lua systems);
--- CONTRIBUTING lists every expected message. It starts just after the map loads.
+-- The moonwell-systems in-game gate. The maintainer builds a throwaway map from this file and runs it in game
+-- (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. It starts just after the map
+-- loads.
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
 import "wrappers.player" as Player

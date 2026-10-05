@@ -315,7 +315,7 @@ A Terrain owns one location, one hidden item and one rect, each created on first
 - a missile: `getPosition()` (x, y, absolute z), `getVelocity()`, `setVelocity(vx, vy, vz)`, `getAge()`,
   `getTravelled()`, `getHitCount()`, `getEffect()`, `isActive()`, `dispose()`, and its `data`
 
-The request is a table: `x`, `y`, `height` (above the ground, default 60), `vx`, `vy`, `vz?`, `ax?`, `ay?`, `az?`,
+The request is a table: `x`, `y`, `height?` (above the ground, default 60), `vx`, `vy`, `vz?`, `ax?`, `ay?`, `az?`,
 `radius`, `lifetime`, `maxRange?`, `maxHits?` (default 1; more pierces), `followGround?`, `model?` or `effect?`,
 `scale?`, `face?` (default true), `filter?(unit, missile)`, `steer?(missile, dt)`, `onHit?(missile, unit)`,
 `onEnd?(missile, reason)` and `data?`. It ends with `hit-limit`, `expired`, `range`, `ground`, `cancelled`,

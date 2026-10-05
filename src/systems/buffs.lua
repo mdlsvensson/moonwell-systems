@@ -27,6 +27,8 @@ BuffStore.__index = BuffStore
 ---| 'disposed'
 ---| 'error'
 
+---A buff's rules and callbacks. A definition is checked when it is first applied and read as it is from then on: do
+---not change it afterwards. A key that is not listed here is left alone, for the map's own fields.
 ---@class MoonwellSystems.BuffDefinition
 ---@field id string One instance per (unit, id, source).
 ---@field kind 'active'|'passive'|'aura'
