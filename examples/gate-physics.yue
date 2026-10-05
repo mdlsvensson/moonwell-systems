@@ -42,7 +42,7 @@ physicsGate = (owner) ->
   clock\start!
   hostile = Player.fromIndex 12
   terrain = Terrain.new!
-  missiles = Missiles.new clock
+  missiles = Missiles.new clock: clock
   enemy = (unit) -> unit\getOwner! == hostile
   nobody = -> false
   -- Paused units do not fight on their own, so the gate decides everything that happens.
@@ -135,7 +135,7 @@ physicsGate = (owner) ->
     bench = Scheduler.new!
     crowd = for index = 0, 19
       target 1700 + (index % 5) * 80, 1700 + math.floor(index / 5) * 80
-    fliers = Missiles.new bench
+    fliers = Missiles.new clock: bench
     for index = 1, 100
       angle = index * 0.0628
       fliers\launch

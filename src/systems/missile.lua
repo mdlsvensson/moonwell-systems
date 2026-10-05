@@ -1,6 +1,8 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
 local Ground = require('systems.internal.ground')
+local Stepper = require('systems.internal.stepper')
 local Vector = require('systems.internal.vector')
 local Scheduler = require('systems.scheduler')
 local Effect = require('wrappers.effect')
@@ -22,8 +24,7 @@ local height = Ground.height
 ---@field package list MoonwellSystems.Missile[] In launch order; ended missiles leave after the step.
 ---@field package count integer Missiles in flight.
 ---@field package ended boolean Whether `list` holds ended missiles.
----@field package ticking boolean
----@field package cancel (fun())? Cancels the scheduler task; nil while nothing flies.
+---@field package stepper MoonwellSystems.Stepper
 ---@field package group group? One reused group for every query.
 ---@field package units unit[] The contacts of the missile being advanced, by fraction.
 ---@field package fractions number[]
@@ -34,6 +35,7 @@ Missiles.__index = Missiles
 ---@alias MoonwellSystems.MissileEnd 'hit-limit'|'expired'|'range'|'ground'|'cancelled'|'disposed'|'error'
 
 ---@class MoonwellSystems.MissileOptions
+---@field clock MoonwellSystems.Scheduler Drives the missiles; they move once per scheduler step.
 ---@field onError (fun(message: string): ...)? Receives callback failures; default prints them.
 ---@field terrain boolean? Sample the ground under missiles and targets. Default true; false means flat ground at 0.
 ---@field targetOffset number? A target's centre above its feet. Default 50.
@@ -101,20 +103,59 @@ local Missile = {}
 Missile.__index = Missile
 Missiles.Missile = Missile
 
-local NUMBERS = {'x', 'y', 'vx', 'vy', 'radius', 'lifetime'}
-local OPTIONAL = {'height', 'vz', 'ax', 'ay', 'az', 'maxRange', 'scale'}
-local CALLBACKS = {'filter', 'steer', 'onHit', 'onEnd'}
+local OPTIONS = {
+    clock = {Fields.class(Scheduler, 'a Scheduler'), required = true},
+    onError = {'function'},
+    terrain = {'boolean', default = true},
+    targetOffset = {'finite', default = 50},
+    maxTargetRadius = {'nonNegative', default = 128},
+}
+
+local function liveEffect(value) return getmetatable(value) == Effect and not value:isDisposed() end
+
+local LAUNCH = {
+    x = {'finite', required = true},
+    y = {'finite', required = true},
+    height = {'finite', default = 60},
+    vx = {'finite', required = true},
+    vy = {'finite', required = true},
+    vz = {'finite', default = 0},
+    ax = {'finite', default = 0},
+    ay = {'finite', default = 0},
+    az = {'finite', default = 0},
+    radius = {'nonNegative', required = true},
+    lifetime = {'positive', required = true},
+    maxRange = {'positive'},
+    maxHits = {Fields.integer(1), default = 1},
+    followGround = {'boolean', default = false},
+    model = {'string'},
+    effect = {Fields.test(liveEffect, 'a live Effect')},
+    scale = {'finite'},
+    face = {'boolean', default = true},
+    filter = {'function'},
+    steer = {'function'},
+    onHit = {'function'},
+    onEnd = {'function'},
+    data = {'any'},
+}
+
+---The rules that join two keys, after Fields.request. Nil when they hold.
+---@param r table
+---@return string?
+local function joined(r)
+    if not Check.finite(r.vx * r.vx + r.vy * r.vy + r.vz * r.vz) then
+        return "'vx', 'vy' and 'vz' expected a finite speed"
+    end
+    if not Check.finite(r.ax * r.ax + r.ay * r.ay + r.az * r.az) then
+        return "'ax', 'ay' and 'az' expected a finite acceleration"
+    end
+    if r.followGround and (r.vz ~= 0 or r.az ~= 0) then return "'followGround' cannot be used with 'vz' or 'az'" end
+    if r.model ~= nil and r.effect ~= nil then return "'effect' cannot be given with 'model'" end
+    if r.scale ~= nil and r.model == nil then return "'scale' needs 'model'" end
+    return nil
+end
 
 -- Ending
-
----@param system MoonwellSystems.Missiles
-local function stop(system)
-    local cancel = system.cancel
-    if cancel then
-        system.cancel = nil
-        cancel()
-    end
-end
 
 ---Ends a missile once: releases its place, destroys its effect, then runs onEnd.
 ---@param missile MoonwellSystems.Missile
@@ -131,7 +172,7 @@ local function finish(missile, reason)
     missile.raw = nil
     local onEnd = missile.onEnd
     if onEnd then Callback.call('Missile end', system.onError, onEnd, missile, reason) end
-    if system.count == 0 and not system.ticking then stop(system) end
+    system.stepper:settle()
 end
 
 -- A step
@@ -283,16 +324,15 @@ local function advance(system, missile, dt)
     end
 end
 
----One scheduler step: advances the missiles that were in flight when it began, in launch order.
+---One step: advances the missiles that were in flight when it began, in launch order.
 ---@param system MoonwellSystems.Missiles
-local function tick(system)
-    local list, dt = system.list, system.clock:getStep()
-    system.ticking = true
+---@param dt number
+local function tick(system, dt)
+    local list = system.list
     for index = 1, #list do
         local missile = list[index]
         if missile.active then advance(system, missile, dt) end
     end
-    system.ticking = false
     if system.ended then
         local kept = {}
         for _, missile in ipairs(system.list) do
@@ -300,68 +340,23 @@ local function tick(system)
         end
         system.list, system.ended = kept, false
     end
-    if system.count == 0 then stop(system) end
 end
 
 -- Missiles
 
----@param clock MoonwellSystems.Scheduler Drives the missiles; they move once per scheduler step.
----@param options MoonwellSystems.MissileOptions?
+---@param options MoonwellSystems.MissileOptions
 ---@return MoonwellSystems.Missiles
-function Missiles.new(clock, options)
-    Check.receiver(clock, Scheduler, 'Scheduler', 'Missiles.new')
-    if options == nil then options = {} end
-    if type(options) ~= 'table' then error('[systems] Missiles.new: expected an options table', 2) end
-    Callback.optional(options.onError, 'Missiles.new')
-    local terrain, offset, cap = options.terrain, options.targetOffset, options.maxTargetRadius
-    if terrain ~= nil and type(terrain) ~= 'boolean' then
-        error('[systems] Missiles.new: expected missile options: terrain', 2)
-    end
-    if offset == nil then offset = 50 end
-    if not Check.finite(offset) then error('[systems] Missiles.new: expected missile options: targetOffset', 2) end
-    if cap == nil then cap = 128 end
-    if not Check.finite(cap) or cap < 0 then
-        error('[systems] Missiles.new: expected missile options: maxTargetRadius', 2)
-    end
-    return setmetatable({
-        clock = clock, onError = options.onError, ground = terrain ~= false and Ground.new() or nil,
-        targetOffset = offset, maxTargetRadius = cap, list = {}, count = 0, ended = false, ticking = false,
-        units = {}, fractions = {}, disposed = false,
+function Missiles.new(options)
+    local read = Fields.options(options, OPTIONS, 'Missiles.new')
+    ---@type MoonwellSystems.Missiles
+    local system = setmetatable({
+        clock = read.clock, onError = read.onError, ground = read.terrain and Ground.new() or nil,
+        targetOffset = read.targetOffset, maxTargetRadius = read.maxTargetRadius, list = {}, count = 0,
+        ended = false, units = {}, fractions = {}, disposed = false,
     }, Missiles)
-end
-
----@param request table
----@return string? field The first invalid field, or nil.
-local function invalid(request)
-    for _, name in ipairs(NUMBERS) do
-        if not Check.finite(request[name]) then return name end
-    end
-    for _, name in ipairs(OPTIONAL) do
-        if request[name] ~= nil and not Check.finite(request[name]) then return name end
-    end
-    if request.radius < 0 then return 'radius' end
-    if request.lifetime <= 0 then return 'lifetime' end
-    if request.maxRange ~= nil and request.maxRange <= 0 then return 'maxRange' end
-    local maxHits = request.maxHits
-    if maxHits ~= nil and (math.type(maxHits) == nil or math.floor(maxHits) ~= maxHits or maxHits < 1) then
-        return 'maxHits'
-    end
-    local vz, ax, ay, az = request.vz or 0, request.ax or 0, request.ay or 0, request.az or 0
-    if not Check.finite(request.vx * request.vx + request.vy * request.vy + vz * vz) then return 'velocity' end
-    if not Check.finite(ax * ax + ay * ay + az * az) then return 'acceleration' end
-    for _, name in ipairs({'followGround', 'face'}) do
-        if request[name] ~= nil and type(request[name]) ~= 'boolean' then return name end
-    end
-    if request.followGround and (vz ~= 0 or az ~= 0) then return 'followGround' end
-    local model, effect = request.model, request.effect
-    if model ~= nil and (type(model) ~= 'string' or model == '') then return 'model' end
-    if effect ~= nil and (getmetatable(effect) ~= Effect or effect:isDisposed()) then return 'effect' end
-    if model ~= nil and effect ~= nil then return 'model and effect' end
-    if request.scale ~= nil and model == nil then return 'scale' end
-    for _, name in ipairs(CALLBACKS) do
-        if request[name] ~= nil and type(request[name]) ~= 'function' then return name end
-    end
-    return nil
+    system.stepper = Stepper.new(read.clock, function(dt) tick(system, dt) end,
+        function() return system.count == 0 end)
+    return system
 end
 
 ---Launches a missile. It first moves on the next scheduler step.
@@ -370,25 +365,23 @@ end
 function Missiles:launch(request)
     local system = Check.receiver(self, Missiles, 'Missiles', 'Missiles.launch')
     if system.disposed then error('[systems] Missiles.launch: the system is disposed', 2) end
-    if type(request) ~= 'table' then error('[systems] Missiles.launch: expected a missile request table', 2) end
-    local field = invalid(request)
-    if field then error('[systems] Missiles.launch: expected a missile request: ' .. field, 2) end
-    local x, y, above = request.x, request.y, request.height or 60
+    local r = Fields.request(request, LAUNCH, 'Missiles.launch', 'a missile request table')
+    local problem = joined(r)
+    if problem then error('[systems] Missiles.launch: ' .. problem, 2) end
+    local x, y, above = r.x, r.y, r.height
     local ground = system.ground
     local z = (ground and height(ground, x, y) or 0) + above
-    local vx, vy, vz = request.vx, request.vy, request.vz or 0
-    local effect = request.effect
-    if request.model then
-        local ok, created = pcall(Effect.create, request.model, x, y)
+    local vx, vy, vz = r.vx, r.vy, r.vz
+    local effect = r.effect
+    if r.model then
+        local ok, created = pcall(Effect.create, r.model, x, y)
         if not ok then
-            -- The wrappers' message without its position, raised at this function's caller.
-            local reason = tostring(created):gsub('^.-:%d+: ', '')
-            error('[systems] Missiles.launch: ' .. reason, 2)
+            error('[systems] Missiles.launch: ' .. Callback.reason(created), 2)
         end
         effect = created
-        if request.scale then effect:setScale(request.scale) end
+        if r.scale then effect:setScale(r.scale) end
     end
-    local face = request.face ~= false
+    local face = r.face
     local yaw, pitch = 0, 0
     if effect then
         effect:setPosition(x, y, z)
@@ -399,19 +392,17 @@ function Missiles:launch(request)
     end
     ---@type MoonwellSystems.Missile
     local missile = setmetatable({
-        data = request.data, system = system, active = true, x = x, y = y, z = z, vx = vx, vy = vy, vz = vz,
-        ax = request.ax or 0, ay = request.ay or 0, az = request.az or 0, radius = request.radius,
-        lifetime = request.lifetime, maxRange = request.maxRange, maxHits = request.maxHits or 1,
-        followGround = request.followGround == true, height = above, effect = effect,
-        raw = effect and effect:getHandle() or nil, face = face, yaw = yaw, pitch = pitch, filter = request.filter,
-        steer = request.steer, onHit = request.onHit, onEnd = request.onEnd, age = 0, travelled = 0, hits = {},
+        data = r.data, system = system, active = true, x = x, y = y, z = z, vx = vx, vy = vy, vz = vz,
+        ax = r.ax, ay = r.ay, az = r.az, radius = r.radius,
+        lifetime = r.lifetime, maxRange = r.maxRange, maxHits = r.maxHits,
+        followGround = r.followGround, height = above, effect = effect,
+        raw = effect and effect:getHandle() or nil, face = face, yaw = yaw, pitch = pitch, filter = r.filter,
+        steer = r.steer, onHit = r.onHit, onEnd = r.onEnd, age = 0, travelled = 0, hits = {},
         hitCount = 0,
     }, Missile)
     system.list[#system.list + 1] = missile
     system.count = system.count + 1
-    if not system.cancel then
-        system.cancel = system.clock:every(system.clock:getStep(), function() tick(system) end)
-    end
+    system.stepper:wake()
     return missile
 end
 
@@ -428,7 +419,7 @@ function Missiles:dispose()
     local list = system.list
     for index = 1, #list do finish(list[index], 'disposed') end
     system.list = {}
-    stop(system)
+    system.stepper:dispose()
     if system.group then DestroyGroup(system.group); system.group = nil end
     if system.ground then Ground.dispose(system.ground) end
 end

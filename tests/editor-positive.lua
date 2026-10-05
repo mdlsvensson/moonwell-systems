@@ -67,7 +67,7 @@ local terrain = scope:add(Terrain.new({itemType = 2003790951}))
 print(terrain:height(0, 0), terrain:isWalkable(0, 0), terrain:isClear(0, 0), terrain:inBounds(0, 0))
 print(Geometry.length(3, 4), Geometry.segmentSphere(0, 0, 0, 1, 0, 0, 1, 0, 0, 1), Geometry.orientation(1, 0, 0))
 local bolt = 'Abilities\\Weapons\\BallistaMissile\\BallistaMissile.mdl'
-local missiles = scope:add(Missiles.new(clock, {terrain = true, targetOffset = 50, maxTargetRadius = 128}))
+local missiles = scope:add(Missiles.new({clock = clock, terrain = true, targetOffset = 50, maxTargetRadius = 128}))
 local missile = missiles:launch({x = 0, y = 0, height = 60, vx = 900, vy = 0, az = -100, radius = 16, lifetime = 2,
     maxRange = 1000, maxHits = 3, model = bolt, scale = 1.5, data = {damage = 40},
     filter = function(unit, flying) return unit ~= hero and flying:isActive() end,

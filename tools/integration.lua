@@ -106,7 +106,7 @@ local entries = {
     terrain = {source = 'import "systems.terrain" as Terrain\nt = Terrain.new!\nt\\dispose!\n', systems = {},
         wrappers = {}},
     missile = {source = 'import "systems.missile" as Missiles\nimport "systems.scheduler" as Scheduler\n'
-        .. 'm = Missiles.new Scheduler.new!\nm\\dispose!\n', systems = {scheduler = true},
+        .. 'm = Missiles.new clock: Scheduler.new!\nm\\dispose!\n', systems = {scheduler = true},
         wrappers = {unit = true, player = true, item = true, timer = true, effect = true}},
     knockback = {source = 'import "systems.knockback" as Knockbacks\nimport "systems.scheduler" as Scheduler\n'
         .. 'k = Knockbacks.new Scheduler.new!\nk\\dispose!\n', systems = {scheduler = true},

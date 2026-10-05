@@ -27,7 +27,7 @@ mw.on_main ->
   damage\beforeArmor (hit) -> hit\setAmount hit.amount * 2
   damage\afterArmor ((hit) -> hit\cancel! if hit\isLethal!), 5
   damage\observe (hit) -> print hit.amount, hit.metadata
-  missiles = scope\add Missiles.new clock
+  missiles = scope\add Missiles.new clock: clock
   missiles\launch
     x: 0, y: 0, vx: 900, vy: 0, radius: 16, lifetime: 1, model: "bolt.mdl"
     steer: (missile, dt) ->

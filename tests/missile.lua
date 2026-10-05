@@ -54,10 +54,10 @@ local function setup(step, options)
     world, effects, queries, ranges = {}, {}, {}, {}
     ground = function() return 0 end
     local clock = Scheduler.new({step = step or 1})
-    local merged = {targetOffset = 0, maxTargetRadius = 16}
+    local merged = {clock = clock, targetOffset = 0, maxTargetRadius = 16}
     for key, value in pairs(options or {}) do merged[key] = value end
     resetCalls()
-    return Missiles.new(clock, merged), clock
+    return Missiles.new(merged), clock
 end
 -- Adds a unit of collision size 1 to the world, after the ones already there.
 local function target(name, x, y, fields)
@@ -252,9 +252,9 @@ test('followGround keeps the height over a rise and never lands', function()
     failsAt(function() missile:setVelocity(100, 0, 5) end,
         'Missile.setVelocity: a followGround missile has no vertical velocity')
     failsAt(function() system:launch(shot({followGround = true, vz = 1})) end,
-        'Missiles.launch: expected a missile request: followGround')
+        "Missiles.launch: 'followGround' cannot be used with 'vz' or 'az'")
     failsAt(function() system:launch(shot({followGround = true, az = -1})) end,
-        'Missiles.launch: expected a missile request: followGround')
+        "Missiles.launch: 'followGround' cannot be used with 'vz' or 'az'")
 end)
 
 test('steering with turnToward homes on a target beside the path', function()
@@ -454,17 +454,18 @@ test('launch checks its request at the caller, before any effect is created', fu
         {'x', {x = '0'}}, {'y', {y = 0 / 0}}, {'vx', {vx = math.huge}}, {'vy', {vy = false}}, {'radius', {radius = -1}},
         {'lifetime', {lifetime = 0}}, {'height', {height = 'high'}}, {'vz', {vz = {}}}, {'az', {az = '1'}},
         {'maxRange', {maxRange = 0}}, {'maxHits', {maxHits = 0}}, {'maxHits', {maxHits = 1.5}},
-        {'velocity', {vx = 1e200}}, {'acceleration', {ax = 1e200}}, {'followGround', {followGround = 1}},
+        {'vx', {vx = 1e200}}, {'ax', {ax = 1e200}}, {'followGround', {followGround = 1}},
         {'face', {face = 'yes'}}, {'model', {model = ''}}, {'model', {model = 5}}, {'effect', {effect = {}}},
-        {'effect', {effect = gone}}, {'model and effect', {model = 'bolt.mdl', effect = own}},
+        {'effect', {effect = gone}}, {'effect', {model = 'bolt.mdl', effect = own}},
         {'scale', {scale = 2}}, {'scale', {scale = 2, effect = own}}, {'filter', {filter = 5}},
         {'steer', {steer = 'x'}}, {'onHit', {onHit = {}}}, {'onEnd', {onEnd = 1}},
         {'lifetime', {lifetime = -1, model = 'bolt.mdl'}}, {'onEnd', {onEnd = 1, model = 'bolt.mdl', scale = 2}},
     }
     for _, case in ipairs(cases) do
         failsAt(function() system:launch(shot(case[2])) end,
-            'Missiles.launch: expected a missile request: ' .. case[1])
+            "Missiles.launch: '" .. case[1] .. "'")
     end
+    failsAt(function() system:launch(shot({lifetme = 2})) end, "Missiles.launch: unknown key 'lifetme'")
     eq(callCount('AddSpecialEffect'), 0); eq(system:getCount(), 0)
     failsAt(function() system:launch(shot({model = 'missing.mdl'})) end,
         'Missiles.launch: [wrappers] Effect.create: native returned nil')
@@ -484,12 +485,12 @@ end)
 
 test('new and the missile methods check their arguments at the caller', function()
     local clock = Scheduler.new({step = 1})
-    failsAt(function() Missiles.new({}) end, 'Missiles.new: expected Scheduler')
-    failsAt(function() Missiles.new(clock, 5) end, 'Missiles.new: expected an options table')
-    failsAt(function() Missiles.new(clock, {onError = 5}) end, 'Missiles.new: expected a callback function')
+    failsAt(function() Missiles.new({}) end, "Missiles.new: 'clock' expected a Scheduler")
+    failsAt(function() Missiles.new(clock) end, 'Missiles.new: expected an options table')
+    failsAt(function() Missiles.new({clock = clock, onError = 5}) end, "Missiles.new: 'onError' expected a function")
     for _, case in ipairs({{'terrain', 'yes'}, {'targetOffset', '50'}, {'maxTargetRadius', -1}}) do
-        failsAt(function() Missiles.new(clock, {[case[1]] = case[2]}) end,
-            'Missiles.new: expected missile options: ' .. case[1])
+        failsAt(function() Missiles.new({clock = clock, [case[1]] = case[2]}) end,
+            "Missiles.new: '" .. case[1] .. "'")
     end
     local system = setup()
     local missile = system:launch(shot())
@@ -499,4 +500,16 @@ test('new and the missile methods check their arguments at the caller', function
     failsAt(function() missile.dispose({}) end, 'Missile.dispose: expected Missile')
     failsAt(function() Missiles.getCount({}) end, 'Missiles.getCount: expected Missiles')
     failsAt(function() Missiles.dispose({}) end, 'Missiles.dispose: expected Missiles')
+end)
+
+test('the stepper starts with the first launch and stops when the last missile ends', function()
+    local system, clock = setup(1)
+    eq(clock:getPending(), 0)
+    local missile = system:launch(shot({lifetime = 1.5}))
+    eq(clock:getPending(), 1)
+    missile:dispose()
+    eq(clock:getPending(), 0)
+    system:launch(shot({lifetime = 1}))
+    clock:advance()
+    eq(system:getCount(), 0); eq(clock:getPending(), 0)
 end)
