@@ -1,5 +1,7 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
+local Listeners = require('systems.internal.listeners')
 local Events = require('wrappers.damage')
 local Timer = require('wrappers.timer')
 local Unit = require('wrappers.unit')
@@ -8,16 +10,15 @@ local Unit = require('wrappers.unit')
 ---damage that never nests inside another hit's listeners; and attribution of a hit to its real caster. Nothing is
 ---created before start().
 ---@class MoonwellSystems.DamageSystem
----@field package before MoonwellSystems.DamageListener[] Replaced, never changed in place: a dispatch keeps its list.
----@field package after MoonwellSystems.DamageListener[]
----@field package observers MoonwellSystems.DamageListener[]
+---@field package before MoonwellSystems.Listeners
+---@field package after MoonwellSystems.Listeners
+---@field package observers MoonwellSystems.Listeners
 ---@field package pending MoonwellSystems.Hit[] Hits whose DAMAGED has not come, oldest first.
 ---@field package sourceOf (fun(dealer: MoonwellWrappers.Unit): MoonwellWrappers.Unit?)?
 ---@field package onError (fun(message: string): ...)?
 ---@field package maxQueue integer
 ---@field package maxChain integer
 ---@field package maxPending integer
----@field package nextListener integer The id of the newest listener; a hit runs the listeners up to its cutoff.
 ---@field package depth integer Hits whose listeners are running.
 ---@field package running boolean
 ---@field package disposed boolean
@@ -27,7 +28,9 @@ local Unit = require('wrappers.unit')
 ---@field package onSettle fun(): ...
 ---@field package damagingToken MoonwellWrappers.DamageListener?
 ---@field package damagedToken MoonwellWrappers.DamageListener?
----@field package queue MoonwellSystems.DamageDeal[] Deals waiting for the current hit to finish.
+---@field package queue table<integer, MoonwellSystems.DamageDeal> Deals waiting for the current hit, from `first`.
+---@field package first integer
+---@field package last integer
 ---@field package chain integer Deals issued since the queue was last empty.
 ---@field package draining boolean
 ---@field package invocation MoonwellSystems.DamageDeal? The deal whose damageTarget call is running.
@@ -66,11 +69,6 @@ DamageSystem.__index = DamageSystem
 ---@field claimed boolean Whether a hit has taken the metadata.
 ---@field hit MoonwellSystems.Hit? The hit that took it.
 
----@class MoonwellSystems.DamageListener
----@field id integer
----@field priority number
----@field callback function? Nil once removed.
-
 ---One hit, passed to every listener of every phase. The fields are for reading: change the hit with its methods.
 ---@class MoonwellSystems.Hit
 ---@field source MoonwellWrappers.Unit? The credited Unit; nil when the game gives no source.
@@ -95,9 +93,34 @@ local Hit = {}
 Hit.__index = Hit
 DamageSystem.Hit = Hit
 
-local DEFAULTS = {maxQueue = 128, maxChain = 64, maxPending = 64}
-local LIMITS = {'maxQueue', 'maxChain', 'maxPending'}
-local LISTS = {'before', 'after', 'observers'}
+local function liveUnit(value) return Check.liveUnit(value, Unit) end
+
+local OPTIONS = {
+    sourceOf = {'function'},
+    onError = {'function'},
+    maxQueue = {Fields.integer(1), default = 128},
+    maxChain = {Fields.integer(1), default = 64},
+    maxPending = {Fields.integer(1), default = 64},
+}
+
+local DEAL = {
+    source = {Fields.test(liveUnit, 'a live Unit'), required = true},
+    target = {Fields.test(liveUnit, 'a live Unit'), required = true},
+    amount = {'nonNegative', required = true},
+    attack = {'boolean', default = false},
+    ranged = {'boolean', default = false},
+    attackType = {'any'},
+    damageType = {'any'},
+    weaponType = {'any'},
+    metadata = {'any'},
+}
+
+---@param system MoonwellSystems.DamageSystem
+---@return integer
+local function queued(system) return system.last - system.first + 1 end
+
+---@param system MoonwellSystems.DamageSystem
+local function emptyQueue(system) system.queue, system.first, system.last = {}, 1, 0 end
 
 -- Hit
 
@@ -177,23 +200,17 @@ function Hit:isLethal()
     return target:getLife() - self.amount <= 0.405
 end
 
--- The pipeline
-
----@param value unknown
----@return boolean
-local function whole(value) return math.type(value) ~= nil and math.floor(value) == value end
-
 ---Runs the hit's listeners of one list: those that existed when the hit began and are still registered (dispose()
 ---and a remove function clear the callback).
 ---@param system MoonwellSystems.DamageSystem
----@param list MoonwellSystems.DamageListener[]
+---@param list MoonwellSystems.Listeners
 ---@param hit MoonwellSystems.Hit
 local function dispatch(system, list, hit)
-    local cutoff = hit.cutoff
-    for index = 1, #list do
-        local listener = list[index]
-        local callback = listener.callback
-        if callback and listener.id <= cutoff then
+    local cutoff, cells = hit.cutoff, list:current()
+    for index = 1, #cells do
+        local cell = cells[index]
+        local callback = cell.callback
+        if callback and cell.id <= cutoff then
             Callback.call('Damage listener', system.onError, callback, hit)
         end
     end
@@ -240,17 +257,19 @@ end
 local function drain(system)
     if not system.running or system.draining or system.depth > 0 then return end
     system.draining = true
-    while system.running and #system.queue > 0 and #system.pending == 0 do
+    while system.running and queued(system) > 0 and #system.pending == 0 do
         if system.chain >= system.maxChain then
-            local dropped = #system.queue
-            system.queue = {}
+            local dropped = queued(system)
+            emptyQueue(system)
             system.chain = 0
             Callback.report('Damage chain', system.onError,
                 'more than ' .. system.maxChain .. ' deals in one chain; ' .. dropped .. ' queued deals dropped')
             break
         end
         system.chain = system.chain + 1
-        local deal = table.remove(system.queue, 1)
+        local deal = system.queue[system.first]
+        system.queue[system.first] = nil
+        system.first = system.first + 1
         local source, target = deal.source, deal.target
         if not source:isDisposed() and not target:isDisposed() then
             local previous = system.invocation
@@ -263,7 +282,7 @@ local function drain(system)
         end
     end
     system.draining = false
-    if #system.queue == 0 then system.chain = 0 end
+    if queued(system) == 0 then emptyQueue(system); system.chain = 0 end
 end
 
 ---@param system MoonwellSystems.DamageSystem
@@ -288,7 +307,8 @@ local function damaging(system, event)
         source = resolve(system, dealer), dealer = dealer, target = target, amount = amount,
         isAttack = event.isAttack, attackType = event.attackType, damageType = event.damageType,
         weaponType = event.weaponType, metadata = metadata, phase = 'beforeArmor', initialAmount = amount,
-        beforeArmorAmount = amount, cancelled = false, paired = true, system = system, cutoff = system.nextListener,
+        beforeArmorAmount = amount, cancelled = false, paired = true, system = system,
+        cutoff = system.before:getLastId(),
     }, Hit)
     local pending = system.pending
     if #pending >= system.maxPending then table.remove(pending, 1) end
@@ -329,7 +349,7 @@ local function damaged(system, event)
         hit = setmetatable({
             source = resolve(system, dealer), dealer = dealer, target = target, isAttack = isAttack,
             initialAmount = amount, beforeArmorAmount = amount, cancelled = false, paired = false, system = system,
-            cutoff = system.nextListener,
+            cutoff = system.before:getLastId(),
         }, Hit)
     end
     hit.phase = 'afterArmor'
@@ -376,28 +396,14 @@ end
 ---@param options MoonwellSystems.DamageOptions?
 ---@return MoonwellSystems.DamageSystem
 function DamageSystem.new(options)
-    if options == nil then options = {} end
-    if type(options) ~= 'table' then error('[systems] DamageSystem.new: expected an options table', 2) end
-    for _, name in ipairs({'sourceOf', 'onError'}) do
-        if options[name] ~= nil and type(options[name]) ~= 'function' then
-            error('[systems] DamageSystem.new: expected damage options: ' .. name, 2)
-        end
-    end
-    local limits = {}
-    for _, name in ipairs(LIMITS) do
-        local value = options[name]
-        if value == nil then value = DEFAULTS[name] end
-        if not whole(value) or value < 1 then
-            error('[systems] DamageSystem.new: expected damage options: ' .. name, 2)
-        end
-        limits[name] = value
-    end
+    local read = Fields.options(options, OPTIONS, 'DamageSystem.new')
+    local ids = {last = 0}
     ---@type MoonwellSystems.DamageSystem
     local system = setmetatable({
-        before = {}, after = {}, observers = {}, pending = {}, sourceOf = options.sourceOf,
-        onError = options.onError, maxQueue = limits.maxQueue, maxChain = limits.maxChain,
-        maxPending = limits.maxPending, nextListener = 0, depth = 0, running = false, disposed = false,
-        scheduled = false, queue = {}, chain = 0, draining = false,
+        before = Listeners.new(ids), after = Listeners.new(ids), observers = Listeners.new(ids), pending = {},
+        sourceOf = read.sourceOf, onError = read.onError, maxQueue = read.maxQueue, maxChain = read.maxChain,
+        maxPending = read.maxPending, depth = 0, running = false, disposed = false, scheduled = false, queue = {},
+        first = 1, last = 0, chain = 0, draining = false,
     }, DamageSystem)
     system.onSettle = function() settle(system) end
     return system
@@ -415,8 +421,7 @@ function DamageSystem:start()
     end)
     if not ok then
         release(system)
-        -- The wrappers' message without its position, raised at this function's caller.
-        local reason = tostring(failure):gsub('^.-:%d+: ', '')
+        local reason = Callback.reason(failure)
         error('[systems] DamageSystem.start: ' .. reason, 2)
     end
     system.running = true
@@ -433,28 +438,8 @@ local function listen(system, key, callback, priority, operation)
     Callback.check(callback, operation, 1)
     if priority == nil then priority = 0 end
     if not Check.finite(priority) then error('[systems] ' .. operation .. ': expected a finite priority', 3) end
-    system.nextListener = system.nextListener + 1
-    ---@type MoonwellSystems.DamageListener
-    local listener = {id = system.nextListener, priority = priority, callback = callback}
-    local list, copy, placed = system[key], {}, false
-    for index = 1, #list do
-        if not placed and list[index].priority > priority then
-            copy[#copy + 1] = listener
-            placed = true
-        end
-        copy[#copy + 1] = list[index]
-    end
-    if not placed then copy[#copy + 1] = listener end
-    system[key] = copy
-    return function()
-        if not listener.callback then return end
-        listener.callback = nil
-        local kept = {}
-        for _, other in ipairs(system[key]) do
-            if other ~= listener then kept[#kept + 1] = other end
-        end
-        system[key] = kept
-    end
+    local remove = system[key]:add(callback, priority)
+    return remove
 end
 
 ---Adds a modifier that runs before armor. Lower `priority` runs first; equal priorities keep registration order. A
@@ -485,21 +470,6 @@ function DamageSystem:observe(callback, priority)
     return (listen(system, 'observers', callback, priority, 'DamageSystem.observe'))
 end
 
----@param value unknown
----@return boolean
-local function liveUnit(value) return getmetatable(value) == Unit and not value:isDisposed() end
-
----@param request table
----@return string? field The first invalid field, or nil.
-local function invalid(request)
-    if not liveUnit(request.source) then return 'source' end
-    if not liveUnit(request.target) then return 'target' end
-    if not Check.finite(request.amount) or request.amount < 0 then return 'amount' end
-    if request.attack ~= nil and type(request.attack) ~= 'boolean' then return 'attack' end
-    if request.ranged ~= nil and type(request.ranged) ~= 'boolean' then return 'ranged' end
-    return nil
-end
-
 ---Deals damage through the pipeline. Outside damage events it runs at once; inside a listener it is queued and runs,
 ---first in first out, after the current hit. The hit it causes carries `request.metadata`.
 ---@param request MoonwellSystems.DamageRequest
@@ -507,20 +477,16 @@ function DamageSystem:deal(request)
     local system = Check.receiver(self, DamageSystem, 'DamageSystem', 'DamageSystem.deal')
     if system.disposed then error('[systems] DamageSystem.deal: the system is disposed', 2) end
     if not system.running then error('[systems] DamageSystem.deal: the system is not started', 2) end
-    if type(request) ~= 'table' then error('[systems] DamageSystem.deal: expected a damage request table', 2) end
-    local field = invalid(request)
-    if field then error('[systems] DamageSystem.deal: expected a damage request: ' .. field, 2) end
-    local queue = system.queue
-    if #queue >= system.maxQueue then
+    local read = Fields.request(request, DEAL, 'DamageSystem.deal', 'a damage request table')
+    if queued(system) >= system.maxQueue then
         error('[systems] DamageSystem.deal: the queue is full (' .. system.maxQueue .. ' deals)', 2)
     end
-    queue[#queue + 1] = {
-        source = request.source, target = request.target, amount = request.amount,
-        attack = request.attack == true, ranged = request.ranged == true,
-        attackType = request.attackType or ATTACK_TYPE_NORMAL,
-        damageType = request.damageType or DAMAGE_TYPE_NORMAL,
-        weaponType = request.weaponType or WEAPON_TYPE_WHOKNOWS,
-        metadata = request.metadata, claimed = false,
+    system.last = system.last + 1
+    system.queue[system.last] = {
+        source = read.source, target = read.target, amount = read.amount, attack = read.attack,
+        ranged = read.ranged, attackType = read.attackType or ATTACK_TYPE_NORMAL,
+        damageType = read.damageType or DAMAGE_TYPE_NORMAL, weaponType = read.weaponType or WEAPON_TYPE_WHOKNOWS,
+        metadata = read.metadata, claimed = false,
     }
     drain(system)
 end
@@ -538,11 +504,9 @@ function DamageSystem:dispose()
     if system.disposed then return end
     system.disposed = true
     system.running = false
-    system.queue, system.pending, system.chain = {}, {}, 0
-    for _, key in ipairs(LISTS) do
-        for _, listener in ipairs(system[key]) do listener.callback = nil end
-        system[key] = {}
-    end
+    emptyQueue(system)
+    system.pending, system.chain = {}, 0
+    system.before:clear(); system.after:clear(); system.observers:clear()
     release(system)
 end
 

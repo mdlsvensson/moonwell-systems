@@ -407,7 +407,7 @@ test('new and the listener functions check their arguments at the caller', funct
     local cases = {{'sourceOf', 5}, {'onError', 'x'}, {'maxQueue', 0}, {'maxChain', 1.5}, {'maxPending', '2'}}
     for _, case in ipairs(cases) do
         failsAt(function() DamageSystem.new({[case[1]] = case[2]}) end,
-            'DamageSystem.new: expected damage options: ' .. case[1])
+            "DamageSystem.new: '" .. case[1] .. "'")
     end
     local system = new({maxQueue = 1, maxChain = 1, maxPending = 1})
     failsAt(function() system:beforeArmor(5) end, 'DamageSystem.beforeArmor: expected a callback function')
@@ -653,8 +653,48 @@ test('deal checks its arguments at the caller', function()
     for _, case in ipairs(cases) do
         local request = {source = unit('s'), target = unit('t'), amount = 1}
         for key, value in pairs(case[2]) do request[key] = value end
-        failsAt(function() system:deal(request) end, 'DamageSystem.deal: expected a damage request: ' .. case[1])
+        failsAt(function() system:deal(request) end, "DamageSystem.deal: '" .. case[1] .. "'")
     end
     eq(callCount('UnitDamageTarget'), 0)
     failsAt(function() DamageSystem.deal({}, {}) end, 'DamageSystem.deal: expected DamageSystem')
+end)
+
+test('unknown keys are refused in options and in deals', function()
+    failsAt(function() DamageSystem.new({maxQueu = 4}) end, "DamageSystem.new: unknown key 'maxQueu'")
+    local system = new()
+    system:start()
+    local source, target = unit('s'), unit('t')
+    failsAt(function() system:deal({source = source, target = target, amount = 1, ammount = 2}) end,
+        "DamageSystem.deal: unknown key 'ammount'")
+end)
+
+test('a listener added during a hit waits for the next hit, in every phase', function()
+    local system = new()
+    system:start()
+    local source, target = unit('s'), unit('t')
+    local late = 0
+    system:beforeArmor(function()
+        system:afterArmor(function() late = late + 1 end)
+    end)
+    system:deal({source = source, target = target, amount = 1})
+    eq(late, 0)
+    system:deal({source = source, target = target, amount = 1})
+    eq(late, 1)
+end)
+
+test('a full queue drains in order through the head index', function()
+    local system = new({maxQueue = 3})
+    system:start()
+    local source, target = unit('s'), unit('t')
+    local order = {}
+    system:observe(function(hit) order[#order + 1] = hit.metadata end)
+    system:beforeArmor(function(hit)
+        if hit.metadata == 0 then
+            for index = 1, 3 do system:deal({source = source, target = target, amount = 1, metadata = index}) end
+            failsAt(function() system:deal({source = source, target = target, amount = 1}) end,
+                'DamageSystem.deal: the queue is full (3 deals)')
+        end
+    end)
+    system:deal({source = source, target = target, amount = 1, metadata = 0})
+    eq(table.concat(order, ','), '0,1,2,3')
 end)
