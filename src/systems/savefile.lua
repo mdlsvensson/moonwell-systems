@@ -56,8 +56,8 @@ local function abilityList(value)
     if type(value) ~= 'table' or #value < 1 then return false end
     local seen = {}
     for index = 1, #value do
-        local ability = value[index]
-        if not Check.integer(ability) or ability < 1 or seen[ability] then return false end
+        local ability = Check.integer(value[index]) and math.tointeger(value[index])
+        if not ability or ability < 1 or seen[ability] then return false end
         seen[ability] = true
     end
     return true

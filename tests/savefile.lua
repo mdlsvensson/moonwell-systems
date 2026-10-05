@@ -328,7 +328,7 @@ test('new, save and load check their arguments at the caller', function()
     for _, folder in ipairs({'none', '', 'two words', 'a\\b', 'a.b', string.rep('f', 33), 5}) do
         failsAt(with({folder = folder}), "[systems] Savefile.new: 'folder' expected 1 to 32 letters, digits, - or _")
     end
-    for _, abilities in ipairs({5, {}, {'Amls'}, {1.5}, {0}, {7, 7}, {7, -1}}) do
+    for _, abilities in ipairs({5, {}, {'Amls'}, {1.5}, {0}, {7, 7}, {7, -1}, {7, 2^63}, {2^63, 7}}) do
         failsAt(with({abilities = abilities}),
             "[systems] Savefile.new: 'abilities' expected a list of ability ids, each once")
     end
