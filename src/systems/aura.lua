@@ -1,5 +1,6 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
 local Ordered = require('systems.internal.ordered')
 local BuffStore = require('systems.buffs')
 
@@ -11,6 +12,7 @@ local BuffStore = require('systems.buffs')
 ---@field package definition MoonwellSystems.BuffDefinition
 ---@field package source any
 ---@field package query fun(): MoonwellWrappers.Unit[]
+---@field package interval number
 ---@field package onError (fun(message: string): ...)?
 ---@field package members MoonwellSystems.Ordered Unit -> MoonwellSystems.Buff
 ---@field package stop fun()?
@@ -18,21 +20,31 @@ local BuffStore = require('systems.buffs')
 local Aura = {}
 Aura.__index = Aura
 
----@param store MoonwellSystems.BuffStore
----@param definition MoonwellSystems.BuffDefinition kind 'aura'.
----@param source any The emitter.
----@param query fun(): MoonwellWrappers.Unit[]
----@param onError (fun(message: string): ...)? Receives query and apply failures; default prints them.
+---@class MoonwellSystems.AuraOptions
+---@field store MoonwellSystems.BuffStore
+---@field definition MoonwellSystems.BuffDefinition kind 'aura'.
+---@field source any The emitter.
+---@field query fun(): MoonwellWrappers.Unit[]
+---@field interval number? Seconds between updates once started. Default 0.5.
+---@field onError (fun(message: string): ...)? Receives query and apply failures; default prints them.
+
+local function auraDefinition(value) return type(value) == 'table' and value.kind == 'aura' end
+
+local OPTIONS = {
+    store = {Fields.class(BuffStore, 'a BuffStore'), required = true},
+    definition = {Fields.test(auraDefinition, 'an aura buff definition'), required = true},
+    source = {'any'},
+    query = {'function', required = true},
+    interval = {'positive', default = 0.5},
+    onError = {'function'},
+}
+
+---@param options MoonwellSystems.AuraOptions
 ---@return MoonwellSystems.Aura
-function Aura.new(store, definition, source, query, onError)
-    Check.receiver(store, BuffStore, 'BuffStore', 'Aura.new')
-    if type(definition) ~= 'table' or definition.kind ~= 'aura' then
-        error('[systems] Aura.new: expected an aura buff definition', 2)
-    end
-    Callback.check(query, 'Aura.new')
-    Callback.optional(onError, 'Aura.new')
-    return setmetatable({store = store, definition = definition, source = source, query = query, onError = onError,
-        members = Ordered.new(), disposed = false}, Aura)
+function Aura.new(options)
+    local read = Fields.options(options, OPTIONS, 'Aura.new')
+    return setmetatable({store = read.store, definition = read.definition, source = read.source, query = read.query,
+        interval = read.interval, onError = read.onError, members = Ordered.new(), disposed = false}, Aura)
 end
 
 ---Reconciles once: removes the buff from Units the query no longer returns and applies it to new ones.
@@ -50,7 +62,7 @@ function Aura:update()
     aura.members:each(function(unit, buff)
         if not present[unit] then
             aura.members:delete(unit)
-            buff:remove('source-lost')
+            buff:dispose('source-lost')
         end
     end)
     for _, unit in ipairs(wanted) do
@@ -61,25 +73,20 @@ function Aura:update()
             if Callback.call('Aura apply', aura.onError, function()
                 applied = aura.store:apply(unit, aura.definition, aura.source)
             end) then
-                if aura.disposed then applied:remove('source-lost') else aura.members:set(unit, applied) end
+                if aura.disposed then applied:dispose('source-lost') else aura.members:set(unit, applied) end
             end
         end
     end
 end
 
 ---Updates now and then every `interval` seconds on the store's scheduler. Starting again restarts the timer.
----@param interval number? Default 0.5.
 ---@return MoonwellSystems.Aura
-function Aura:start(interval)
+function Aura:start()
     local aura = Check.receiver(self, Aura, 'Aura', 'Aura.start')
     if aura.disposed then error('[systems] Aura.start: the aura is disposed', 2) end
-    if interval == nil then interval = 0.5 end
-    if not (Check.finite(interval) and interval > 0) then
-        error('[systems] Aura.start: expected a finite positive interval', 2)
-    end
     if aura.stop then aura.stop() end
     aura:update()
-    aura.stop = aura.store:getScheduler():every(interval, function() aura:update() end)
+    aura.stop = aura.store:getScheduler():every(aura.interval, function() aura:update() end)
     return aura
 end
 
@@ -91,7 +98,7 @@ function Aura:dispose()
     if aura.stop then aura.stop(); aura.stop = nil end
     local members = aura.members
     aura.members = Ordered.new()
-    members:each(function(_, buff) buff:remove('source-lost') end)
+    members:each(function(_, buff) buff:dispose('source-lost') end)
 end
 
 return Aura

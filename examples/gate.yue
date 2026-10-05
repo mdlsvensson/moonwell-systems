@@ -33,7 +33,7 @@ releaseTwoGate = (owner) ->
   clock\after 2.5, ->
     print "Systems dummy gone: count", dummies\getCount!, "active", lease\isActive!, "life lost",
       boltedLife - bolted\getLife!
-  buffs = BuffStore.new clock
+  buffs = BuffStore.new clock: clock
   slowed = Unit.create owner, $FourCC("hfoo"), 200, -250, 90
   baseSpeed = slowed\getMoveSpeed!
   slow =
@@ -76,10 +76,12 @@ releaseTwoGate = (owner) ->
     kind: "aura"
     onApply: (buff) -> print "Systems aura applied to walker", buff\getUnit! == walker
     onRemove: (_, reason) -> print "Systems aura removed:", reason
-  aura = Aura.new buffs, devotion, hero, ->
-    dx, dy = walker\getX! - hero\getX!, walker\getY! - hero\getY!
-    if dx * dx + dy * dy <= 400 * 400 then {walker} else {}
-  clock\after 8, -> aura\start 0.5
+  aura = Aura.new
+    store: buffs, definition: devotion, source: hero, interval: 0.5
+    query: ->
+      dx, dy = walker\getX! - hero\getX!, walker\getY! - hero\getY!
+      if dx * dx + dy * dy <= 400 * 400 then {walker} else {}
+  clock\after 8, -> aura\start!
   clock\after 9, -> walker\setPosition -250, 0
   clock\after 11, -> walker\setPosition 900, 0
   clock\after 12.5, ->

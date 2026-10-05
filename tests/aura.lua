@@ -7,11 +7,11 @@ local function newUnit() return Unit.fromHandle({}) end
 
 test('emitters own independent contributions and recover after dispel', function()
     local clock = Scheduler.new({step = 1})
-    local buffs, u = BuffStore.new(clock, {pollInterval = 100}), newUnit()
+    local buffs, u = BuffStore.new({clock = clock, pollInterval = 100}), newUnit()
     local armor = {id = 'armor', kind = 'aura'}
     local targets = {u}
-    local a = Aura.new(buffs, armor, 'a', function() return targets end)
-    local b = Aura.new(buffs, armor, 'b', function() return {u} end)
+    local a = Aura.new({store = buffs, definition = armor, source = 'a', query = function() return targets end})
+    local b = Aura.new({store = buffs, definition = armor, source = 'b', query = function() return {u} end})
     a:update(); b:update(); eq(#buffs:list(u), 2)
     a:dispose(); eq(#buffs:list(u), 1)
     buffs:clearUnit(u, 'dispelled'); b:update(); eq(#buffs:list(u), 1)
@@ -20,10 +20,11 @@ end)
 
 test('start updates at once and on its interval; dispose stops the timer', function()
     local clock = Scheduler.new({step = 1})
-    local buffs, u, v = BuffStore.new(clock, {pollInterval = 100}), newUnit(), newUnit()
+    local buffs, u, v = BuffStore.new({clock = clock, pollInterval = 100}), newUnit(), newUnit()
     local targets = {u}
-    local aura = Aura.new(buffs, {id = 'a', kind = 'aura'}, 'src', function() return targets end)
-    eq(aura:start(2), aura)
+    local aura = Aura.new({store = buffs, definition = {id = 'a', kind = 'aura'}, source = 'src',
+        query = function() return targets end, interval = 2})
+    eq(aura:start(), aura)
     eq(buffs:has(u, 'a'), true)
     targets = {v}
     clock:advance(); eq(buffs:has(v, 'a'), false)
@@ -35,15 +36,15 @@ end)
 
 test('members follow the query order; a failing query is reported and the timer goes on', function()
     local clock, messages = Scheduler.new({step = 1}), {}
-    local buffs, u, v = BuffStore.new(clock, {pollInterval = 100}), newUnit(), newUnit()
+    local buffs, u, v = BuffStore.new({clock = clock, pollInterval = 100}), newUnit(), newUnit()
     local order, broken = {}, false
     local definition = {id = 'ordered', kind = 'aura',
         onApply = function(buff) order[#order + 1] = buff:getUnit() == u and 'u' or 'v' end}
-    local aura = Aura.new(buffs, definition, 'src', function()
+    local aura = Aura.new({store = buffs, definition = definition, source = 'src', query = function()
         if broken then error('query probe') end
         return {v, u}
-    end, function(message) messages[#messages + 1] = message end)
-    aura:start(1)
+    end, onError = function(message) messages[#messages + 1] = message end, interval = 1})
+    aura:start()
     eq(table.concat(order, ','), 'v,u')
     broken = true
     clock:advance()
@@ -57,14 +58,18 @@ end)
 
 test('arguments are checked at the caller', function()
     local clock = Scheduler.new({step = 1})
-    local buffs = BuffStore.new(clock, {pollInterval = 100})
-    failsAt(function() Aura.new({}, {id = 'a', kind = 'aura'}, nil, print) end, 'Aura.new: expected BuffStore')
-    failsAt(function() Aura.new(buffs, {id = 'a', kind = 'active'}, nil, print) end,
-        'Aura.new: expected an aura buff definition')
-    failsAt(function() Aura.new(buffs, {id = 'a', kind = 'aura'}, nil, 5) end, 'Aura.new: expected a callback function')
-    failsAt(function() Aura.new(buffs, {id = 'a', kind = 'aura'}, nil, print, 5) end,
-        'Aura.new: expected a callback function')
-    local aura = Aura.new(buffs, {id = 'a', kind = 'aura'}, nil, function() return {} end)
-    failsAt(function() aura:start(0) end, 'Aura.start: expected a finite positive interval')
+    local buffs = BuffStore.new({clock = clock, pollInterval = 100})
+    local devotion = {id = 'a', kind = 'aura'}
+    local query = function() return {} end
+    failsAt(function() Aura.new({store = {}, definition = devotion, query = query}) end,
+        "Aura.new: 'store' expected a BuffStore")
+    failsAt(function() Aura.new({store = buffs, definition = {id = 'a', kind = 'active'}, query = query}) end,
+        "Aura.new: 'definition' expected an aura buff definition")
+    failsAt(function() Aura.new({store = buffs, definition = devotion, query = 5}) end,
+        "Aura.new: 'query' expected a function")
+    failsAt(function() Aura.new({store = buffs, definition = devotion, query = query, onError = 5}) end,
+        "Aura.new: 'onError' expected a function")
+    failsAt(function() Aura.new({store = buffs, definition = devotion, query = query, interval = 0}) end,
+        "Aura.new: 'interval' expected a finite positive number")
     failsAt(function() Aura.update({}) end, 'Aura.update: expected Aura')
 end)

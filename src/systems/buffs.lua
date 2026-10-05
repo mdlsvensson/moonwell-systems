@@ -1,5 +1,6 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
 local Ordered = require('systems.internal.ordered')
 local Scheduler = require('systems.scheduler')
 local Unit = require('wrappers.unit')
@@ -12,6 +13,7 @@ local Unit = require('wrappers.unit')
 ---@field package units MoonwellSystems.Ordered Unit -> MoonwellSystems.Buff[], in first-buffed order.
 ---@field package disposed boolean
 ---@field package stopPoll fun()
+---@field package visit fun(unit: MoonwellWrappers.Unit)
 local BuffStore = {}
 BuffStore.__index = BuffStore
 
@@ -39,6 +41,7 @@ BuffStore.__index = BuffStore
 ---@field onRemove (fun(buff: MoonwellSystems.Buff, reason: MoonwellSystems.BuffRemoval): ...)?
 
 ---@class MoonwellSystems.BuffStoreOptions
+---@field clock MoonwellSystems.Scheduler Drives expiry, ticks and the poll.
 ---@field onError (fun(message: string): ...)? Receives callback and release failures; default prints them.
 ---@field pollInterval number? Seconds between checks for removed and dead units; default 0.25.
 
@@ -58,29 +61,31 @@ BuffStore.__index = BuffStore
 local Buff = {}
 Buff.__index = Buff
 
-local KINDS = {active = true, passive = true, aura = true}
-local STACKING = {refresh = true, replace = true, stack = true, independent = true}
 local REASONS = {expired = true, dispelled = true, replaced = true, death = true, removed = true,
     ['source-lost'] = true, disposed = true, error = true}
-local CALLBACKS = {'onApply', 'onStacks', 'onTick', 'onRemove'}
 
-local function positive(value) return Check.finite(value) and value > 0 end
+local OPTIONS = {
+    clock = {Fields.class(Scheduler, 'a Scheduler'), required = true},
+    onError = {'function'},
+    pollInterval = {'positive', default = 0.25},
+}
 
----@return string? field The first invalid field, or nil.
-local function invalid(definition)
-    if type(definition.id) ~= 'string' or definition.id == '' then return 'id' end
-    if not KINDS[definition.kind] then return 'kind' end
-    if definition.stacking ~= nil and not STACKING[definition.stacking] then return 'stacking' end
-    local cap = definition.maxStacks
-    if cap ~= nil and not (math.type(cap) ~= nil and cap >= 1 and math.floor(cap) == cap) then return 'maxStacks' end
-    if definition.duration ~= nil and not positive(definition.duration) then return 'duration' end
-    if definition.interval ~= nil and not positive(definition.interval) then return 'interval' end
-    if definition.removeOnDeath ~= nil and type(definition.removeOnDeath) ~= 'boolean' then return 'removeOnDeath' end
-    for _, name in ipairs(CALLBACKS) do
-        if definition[name] ~= nil and type(definition[name]) ~= 'function' then return name end
-    end
-    return nil
-end
+local DEFINITION = {
+    id = {'string', required = true},
+    kind = {Fields.enum({'active', 'passive', 'aura'}), required = true},
+    stacking = {Fields.enum({'refresh', 'replace', 'stack', 'independent'})},
+    maxStacks = {Fields.integer(1)},
+    duration = {'positive'},
+    interval = {'positive'},
+    removeOnDeath = {'boolean'},
+    onApply = {'function'},
+    onStacks = {'function'},
+    onTick = {'function'},
+    onRemove = {'function'},
+}
+
+---Definitions already checked: a definition is read when first applied (README).
+local checked = setmetatable({}, {__mode = 'k'})
 
 local function removedOnDeath(definition)
     if definition.removeOnDeath ~= nil then return definition.removeOnDeath end
@@ -171,35 +176,24 @@ local function clear(store, unit, reason)
     end
 end
 
-local function poll(store)
-    for _, unit in ipairs(store.units:keys()) do
-        if store.units:has(unit) then
-            Callback.call('Buff poll', store.onError, function()
-                if unit:isDisposed() or not unit:exists() then
-                    clear(store, unit, 'removed')
-                elseif not unit:isAlive() then
-                    clear(store, unit, 'death')
-                end
-            end)
-        end
+---@param store MoonwellSystems.BuffStore
+---@param unit MoonwellWrappers.Unit
+local function check(store, unit)
+    if unit:isDisposed() or not unit:exists() then
+        clear(store, unit, 'removed')
+    elseif not unit:isAlive() then
+        clear(store, unit, 'death')
     end
 end
 
----@param clock MoonwellSystems.Scheduler Drives expiry, ticks and the poll.
----@param options MoonwellSystems.BuffStoreOptions?
+---@param options MoonwellSystems.BuffStoreOptions
 ---@return MoonwellSystems.BuffStore
-function BuffStore.new(clock, options)
-    Check.receiver(clock, Scheduler, 'Scheduler', 'BuffStore.new')
-    if options ~= nil and type(options) ~= 'table' then
-        error('[systems] BuffStore.new: expected an options table', 2)
-    end
-    options = options or {}
-    Callback.optional(options.onError, 'BuffStore.new')
-    local interval = options.pollInterval or 0.25
-    if not positive(interval) then error('[systems] BuffStore.new: expected a finite positive poll interval', 2) end
-    local store = setmetatable({clock = clock, onError = options.onError, units = Ordered.new(), disposed = false},
+function BuffStore.new(options)
+    local read = Fields.options(options, OPTIONS, 'BuffStore.new')
+    local store = setmetatable({clock = read.clock, onError = read.onError, units = Ordered.new(), disposed = false},
         BuffStore)
-    store.stopPoll = clock:every(interval, function() poll(store) end)
+    store.visit = function(unit) Callback.call('Buff poll', store.onError, check, store, unit) end
+    store.stopPoll = read.clock:every(read.pollInterval, function() store.units:each(store.visit) end)
     return store
 end
 
@@ -212,9 +206,10 @@ function BuffStore:apply(unit, definition, source)
     local store = Check.receiver(self, BuffStore, 'BuffStore', 'BuffStore.apply')
     if store.disposed then error('[systems] BuffStore.apply: the store is disposed', 2) end
     Check.receiver(unit, Unit, 'Unit', 'BuffStore.apply')
-    if type(definition) ~= 'table' then error('[systems] BuffStore.apply: expected a buff definition table', 2) end
-    local field = invalid(definition)
-    if field then error('[systems] BuffStore.apply: expected a buff definition: ' .. field, 2) end
+    if not checked[definition] then
+        Fields.request(definition, DEFINITION, 'BuffStore.apply', 'a buff definition table', 0, true)
+        checked[definition] = true
+    end
     local existing = find(store, unit, definition.id, source)
     if existing then
         if existing.definition ~= definition then
@@ -352,10 +347,10 @@ end
 
 ---Ends the buff: timers, releases in reverse, then onRemove. Idempotent.
 ---@param reason MoonwellSystems.BuffRemoval? Default 'dispelled'.
-function Buff:remove(reason)
-    local buff = Check.receiver(self, Buff, 'Buff', 'Buff.remove')
+function Buff:dispose(reason)
+    local buff = Check.receiver(self, Buff, 'Buff', 'Buff.dispose')
     if reason == nil then reason = 'dispelled' end
-    if not REASONS[reason] then error('[systems] Buff.remove: expected a removal reason', 2) end
+    if not REASONS[reason] then error('[systems] Buff.dispose: expected a removal reason', 2) end
     finish(buff, reason)
 end
 

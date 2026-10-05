@@ -13,7 +13,7 @@ local date = Time.unixToUtc(0)
 print(date.year) -- EXPECT need-check-nil
 local BuffStore = require('systems.buffs')
 local Dummies = require('systems.dummy')
-BuffStore.new(clock):apply(clock, {id = 'x', kind = 'active'}) -- EXPECT param-type-mismatch
+BuffStore.new({clock = clock}):apply(clock, {id = 'x', kind = 'active'}) -- EXPECT param-type-mismatch
 Dummies.new(5) -- EXPECT param-type-mismatch
 Dummies.new(clock):nonexistent() -- EXPECT undefined-field
 local DamageSystem = require('systems.damage')

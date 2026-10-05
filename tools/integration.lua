@@ -94,7 +94,7 @@ local entries = {
     scheduler = {source = 'import "systems.scheduler" as Scheduler\nc = Scheduler.new!\nc\\dispose!\n', systems = {},
         wrappers = {timer = true}},
     buffs = {source = 'import "systems.buffs" as BuffStore\nimport "systems.scheduler" as Scheduler\n'
-        .. 's = BuffStore.new Scheduler.new!\ns\\dispose!\n', systems = {scheduler = true}, wrappers = unitFamily},
+        .. 's = BuffStore.new clock: Scheduler.new!\ns\\dispose!\n', systems = {scheduler = true}, wrappers = unitFamily},
     aura = {source = 'import "systems.aura" as Aura\nprint Aura\n', systems = {buffs = true, scheduler = true},
         wrappers = unitFamily},
     dummy = {source = 'import "systems.dummy" as Dummies\nimport "systems.scheduler" as Scheduler\n'
