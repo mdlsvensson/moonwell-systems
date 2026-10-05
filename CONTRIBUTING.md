@@ -30,9 +30,25 @@ Moonwell's native declarations, checks that each entry point bundles only what i
 
 ## In-game release gate (maintainer)
 
-In `../wrappers-gate` (whose `moonwell.local.pkl` lists both libraries as local paths, and whose `objects/units.pkl`
-has the README's dummy unit type), run `yue -e gate.lua systems`. The gate starts just after the map loads and takes
-about 18 seconds. Expected messages (F12 log), release 1 first:
+The maintainer builds a throwaway map for each run, runs it in game on the current patch, and reads the printed lines
+against the expected messages below and the comments in the example. The workspace's release skill
+(`.claude/skills/release/SKILL.md`, "Building a throwaway gate map") writes the map's files: a Moonwell project linked
+to the Moonwell checkout, whose `moonwell.local.pkl` lists both libraries as local paths, whose object data has the
+README's dummy unit type, and whose `src/main.yue` is an unchanged copy of the example. The skill builds it with
+`moonwell build --entry src/main.yue` (with `--minify` for a minified run) and hands over the command that starts the
+game on `dist/bin/map.w3x`. A printed line shows on screen for a few seconds, so take a screenshot, or read the lines
+that the physics, knockback and save gates also write to a file.
+
+The five examples, and the steps each one covers:
+
+- `examples/gate.yue`: releases 1 and 2, steps 1 to 12.
+- `examples/gate-damage.yue`: release 3, steps 13 to 20.
+- `examples/gate-physics.yue`: release 4, missiles and terrain, steps 21 to 29.
+- `examples/gate-knockback.yue`: release 4, knockbacks, steps 30 to 36.
+- `examples/gate-save.yue`: release 5, steps 37 to 46.
+
+Run `examples/gate.yue` first. It starts just after the map loads and takes about 18 seconds. Expected messages,
+release 1 first:
 
 1. `Systems signal order: low:7 five:7` after one `[systems] Signal listener failed: …intentional signal probe`;
    `Systems local UTC <seconds> <date> weekday <d>` (record it; the date is today's UTC); `Systems duration 3725 s
@@ -62,7 +78,7 @@ the left, with footmen above, below and to the upper right, and one far to the r
 12. At 12.5 s: `Systems passive buff removed: disposed`, then `Systems release 2 done`. No `[systems] … failed` line
     prints in release 2.
 
-Release 3 (v0.3.0) has its own run, `yue -e gate.lua systems-damage`, about 10 seconds. A paladin stands on the left;
+Release 3 (v0.3.0) has its own run, `examples/gate-damage.yue`, about 10 seconds. A paladin stands on the left;
 above the centre your footman faces a hostile footman; a hostile Spell Breaker stands below. All four are paused.
 `Damage gate started` prints first. A hit prints as
 `Damage <metadata>: <source> via <dealer> -> <target> <initial> > <before armor> > <after armor> > <final> attack <b>`.
@@ -86,7 +102,7 @@ above the centre your footman faces a hostile footman; a hostile Spell Breaker s
 Release 4 (v0.4.0) has two runs of its own. Both also write their lines to
 `Documents\Warcraft III\CustomMapData\` (`moonwell-systems-physics.pld` and `moonwell-systems-knockback.pld`).
 
-`yue -e gate.lua systems-physics` (missiles and terrain, about 16 seconds, with the camera zoomed out): hostile
+`examples/gate-physics.yue` (missiles and terrain, about 16 seconds, with the camera zoomed out): hostile
 footmen stand in the upper rows, and a small hill rises right of the centre. `Physics gate started` prints first.
 
 21. At 1 s a bolt flies east along the top row, pointing east, and hits the hostile footman:
@@ -107,7 +123,7 @@ footmen stand in the upper rows, and a small hill rises right of the centre. `Ph
     3; record it.
 29. At 15 s: `Physics gate done`. No `[systems] … failed` line prints in the run.
 
-`yue -e gate.lua systems-knockback` (about 18 seconds): one footman at a time stands left of the centre, and each
+`examples/gate-knockback.yue` (about 18 seconds): one footman at a time stands left of the centre, and each
 step prints `Knockback <n> next: …` a second before its push. `Knockback gate started` prints first.
 
 30. At 2 s the footman slides east and slows to a stop: `Knockback 1 slide completed moved 300.0 0.0`.
@@ -124,7 +140,7 @@ step prints `Knockback <n> next: …` a second before its push. `Knockback gate 
     under 3; record it.
 36. At 17.5 s: `Knockback gate done`. No `[systems] … failed` line prints in the run.
 
-Release 5 (v0.5.0) has its own run, `yue -e gate.lua systems-save`, about 9 seconds. Nothing needs watching. Its lines
+Release 5 (v0.5.0) has its own run, `examples/gate-save.yue`, about 9 seconds. Nothing needs watching. Its lines
 also go to `Documents\Warcraft III\CustomMapData\moonwell-systems-save.pld`, and its save files to
 `CustomMapData\moonwell-gate\`. `Save gate started as <your name>` prints first.
 
@@ -156,7 +172,7 @@ life lost; the buff went `1 -> 2`, ticked at 2.5, 1.5 and 0.5 s remaining and ex
 `killed death` and `removed removed`; the aura applied and ended `source-lost`; the passive buff ended `disposed`.
 
 v0.3.0: passed 2026-10-01, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build,
-`yue -e gate.lua systems-damage`). Steps 13 to 20 printed as listed: the baseline read 100.0 > 100.0 > 89.28571 with
+`examples/gate-damage.yue`). Steps 13 to 20 printed as listed: the baseline read 100.0 > 100.0 > 89.28571 with
 89.28577 life lost; the crit read 100.0 > 200.0 > 178.5714 > 50 with 50.0 life lost; the cancelled hit printed its
 observer line with 0.0 life lost; the Storm Bolt printed two hits credited to the paladin (0.0, then 100.0), with no
 dummy model visible; the chain read 89.28571 and its follow-up 5.0 > 4.464285, with 93.75012 life lost; the Spell
@@ -164,17 +180,16 @@ Breaker ran `beforeArmor`, lost 0.0 life and got no observer line; the attack re
 once; nothing printed after `Damage gate done`, and no failure line printed.
 
 v0.4.0: passed 2026-10-01, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal builds,
-`yue -e gate.lua systems-physics` and `yue -e gate.lua systems-knockback`). Steps 21 to 29 printed as listed: the hit at
+`examples/gate-physics.yue` and `examples/gate-knockback.yue`). Steps 21 to 29 printed as listed: the hit at
 x -145.9 after 450.0; the three footmen at x -100.0, 100.0 and 300.0; exactly 600; the arc landed at x -84.4; the
 straight bolt ended at x 131.2 and the `followGround` one reached z 195.7; the homing bolt curved north to y 290.6;
 `isClear` read true on the item and false at the tree; the missiles cost 1.597 ms per step. Steps 30 to 36 printed as
 listed: 300.0; blocked after 234.4; 400.0 through the tree; replaced, then 100.0 north; the walker moved 133.8 and
 135.0 and kept its order; the knockbacks cost 2.528 ms per step. A first run of the physics gate read 3.603 ms per
-step for the missiles; the loop was changed after a probe (`../wrappers-gate/PROBE-MISSILE-PERF-RESULTS.md`), and the
-gate was run again.
+step for the missiles; the loop was changed after a probe, and the gate was run again.
 
 v0.5.0: passed 2026-10-01, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (normal build,
-`yue -e gate.lua systems-save`, one machine). Steps 37 to 46 printed as listed: parity true for all three codes; the
+`examples/gate-save.yue`, one machine). Steps 37 to 46 printed as listed: parity true for all three codes; the
 round trip gave `gold 500 hero Hpal hardMode true items 1227894832,1227894833,2147483647`; `missing`, `damaged` and
 `checksum` twice; the largest save came back whole (saving 10 ms, reading and sending 64 ms, arrived after 0.07 s);
 `coins 400`; `absent`, then the local clock; the tooltips unchanged; and the five files in `moonwell-gate\`, of which

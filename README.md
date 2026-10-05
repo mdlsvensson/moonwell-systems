@@ -40,6 +40,13 @@ still has it keeps working.
   owner's optional `onError(message)`, or is printed as `[systems] <label> failed: <message>`. Nothing is rethrown:
   errors rethrown inside Warcraft timer callbacks are silent.
 - **Errors point at your line.** A wrong argument raises `[systems] <Class>.<method>: <problem>` at the calling line.
+- **One options table.** Every constructor takes a single table, and a system that needs a scheduler names it `clock`:
+  `BuffStore.new clock: clock`. An old positional call such as `BuffStore.new(scheduler)` raises
+  `[systems] BuffStore.new: expected an options table`.
+- **Typos are caught.** Options and requests refuse a key they do not define (`unknown key 'maxHit'`); buff
+  definitions are open for the map's own fields. A wrong value names its key:
+  `[systems] Missiles.launch: 'maxHits' expected a whole number of at least 1`. When several keys are wrong, the first
+  in sorted order is named, the same on every machine.
 - **Deterministic.** Ties break by creation order, never by handle ids.
 - **32-bit numbers.** Warcraft's integers wrap silently past 2,147,483,647 and floats are single precision.
 
@@ -47,7 +54,7 @@ still has it keeps working.
 
 ### `systems.scheduler`
 
-- `Scheduler.new(stepSeconds = 1/32, onError?)`
+- `Scheduler.new({step = 1/32, onError?})`: `step` is the seconds per tick
 - `after(seconds, callback)`, `every(seconds, callback)`: return a cancel function (idempotent)
 - `advance()`, `getTick()`, `getElapsed()`, `getPending()`, `getStep()`, `ticks(seconds)`
 - `start()`: drives `advance()` from one wrappers Timer; returns a stop function
@@ -67,7 +74,7 @@ clock\after 5, -> cancel!
 
 ### `systems.signal`
 
-- `Signal.new(onError?)`
+- `Signal.new({onError?})`
 - `subscribe(callback, priority = 0)`: returns an unsubscribe function; lower priority runs first
 - `emit(...)`: passes every argument; listeners added during an emit wait for the next one
 - `getCount()`, `dispose()`
@@ -82,7 +89,7 @@ levelUp\emit hero, 2
 
 ### `systems.scope`
 
-- `Scope.new(onError?)`
+- `Scope.new({onError?})`
 - `own(release)`: a function; returns it
 - `add(value)`: anything with `dispose`, `destroy` or `remove` (checked in that order), such as a Scheduler, a Timer or
   a Unit; returns the value
@@ -117,18 +124,21 @@ print Time.formatDuration 125  -- 2:05
 
 ### `systems.buffs`
 
-- `BuffStore.new(clock, {onError?, pollInterval = 0.25})`
+- `BuffStore.new({clock, onError?, pollInterval = 0.25})`
 - `apply(Unit, definition, source?)` returns the buff; `get(Unit, id, source?)`, `has(Unit, id, source?)`,
   `stacks(Unit, id)`, `list(Unit)`
 - `clearUnit(Unit, reason = "removed")` (with `"death"`, buffs that survive death stay), `clearSource(source)`,
   `getScheduler()`, `dispose()`
 - a buff: `getUnit()`, `getSource()`, `getId()`, `getDefinition()`, `isActive()`, `getStacks()`, `getRemaining()`,
-  `own(release)`, `remove(reason = "dispelled")`, and a `data` table for its own state
+  `own(release)`, `dispose(reason = "dispelled")`, and a `data` table for its own state
 
 A definition is a table: `id`, `kind` (`"active"`, `"passive"` or `"aura"`), and optionally `stacking` (`"refresh"`,
 `"replace"`, `"stack"` or `"independent"`), `maxStacks`, `duration`, `interval`, `removeOnDeath`, and the callbacks
 `onApply(buff)`, `onStacks(buff, previous)`, `onTick(buff)` and `onRemove(buff, reason)`. Use one definition table per
-buff id: applying the same id from the same source with another table raises.
+buff id: applying the same id from the same source with another table raises. A definition is checked when it is first
+applied and read as it is from then on: do not change it afterwards. A wrong field raises at the `apply` line
+(`[systems] BuffStore.apply: 'maxStacks' expected a whole number of at least 1`); any other key is left alone for the
+map's own use.
 
 There is one instance per (unit, id, source). Register the inverse of every change with `buff:own(release)`: the store
 runs each release exactly once, in reverse, whatever ends the buff, and then `onRemove` with the reason (`expired`,
@@ -142,7 +152,7 @@ every buff (`removed`); a dead unit loses the buffs with `removeOnDeath` (`death
 ```yue
 import "systems.buffs" as BuffStore
 
-buffs = BuffStore.new clock
+buffs = BuffStore.new clock: clock
 slow =
   id: "slow"
   kind: "active"
@@ -159,9 +169,9 @@ buffs\apply footman, slow, caster
 
 ### `systems.aura`
 
-- `Aura.new(store, definition, source, query, onError?)`: `definition.kind` is `"aura"`; `query()` returns the Units that
-  should carry the buff
-- `start(interval = 0.5)` updates at once and then on the store's scheduler; `update()`; `dispose()`
+- `Aura.new({store, definition, query, source?, interval = 0.5, onError?})`: `definition.kind` is `"aura"`; `query()`
+  returns the Units that should carry the buff; `interval` is the seconds between updates once started
+- `start()` updates at once and then every `interval` on the store's scheduler; `update()`; `dispose()`
 
 Each emitter (`source`) owns its instances, so two auras with the same definition never remove each other's buffs. The
 query decides range, team and visibility. Return the Units in the engine's enumeration order (for example
@@ -171,13 +181,15 @@ query decides range, team and visibility. Return the Units in the engine's enume
 import "systems.aura" as Aura
 
 devotion = {id: "devotion", kind: "aura", onApply: (buff) -> print buff\getUnit!\getName!}
-aura = Aura.new buffs, devotion, paladin, -> alliesNear paladin
+aura = Aura.new
+  store: buffs, definition: devotion, source: paladin, interval: 0.5
+  query: -> alliesNear paladin
 aura\start!
 ```
 
 ### `systems.dummy`
 
-- `Dummies.new(clock, {onError?})`
+- `Dummies.new({clock, onError?})`
 - `cast(request)` returns a lease; `isDummy(Unit)`, `sourceOf(Unit)`, `getCount()`, `dispose()`
 - a lease: `getUnit()`, `getSource()`, `isActive()`, `isOrderAccepted()`, `dispose()`
 
@@ -191,7 +203,7 @@ the dummy at once (`isOrderAccepted()` is false).
 ```yue
 import "systems.dummy" as Dummies
 
-dummies = Dummies.new clock
+dummies = Dummies.new clock: clock
 dummies\cast
   owner: owner, typeId: $FourCC("e000"), x: hero\getX!, y: hero\getY!
   ability: $FourCC("AHtb"), order: "thunderbolt", target: enemy, duration: 2, source: hero
@@ -297,7 +309,7 @@ A Terrain owns one location, one hidden item and one rect, each created on first
 
 ### `systems.missile`
 
-- `Missiles.new(clock, {onError?, terrain = true, targetOffset = 50, maxTargetRadius = 128})`
+- `Missiles.new({clock, onError?, terrain = true, targetOffset = 50, maxTargetRadius = 128})`
 - `launch(request)` returns a missile; `getCount()`, `dispose()`
 - a missile: `getPosition()` (x, y, absolute z), `getVelocity()`, `setVelocity(vx, vy, vz)`, `getAge()`,
   `getTravelled()`, `getHitCount()`, `getEffect()`, `isActive()`, `dispose()`, and its `data`
@@ -328,7 +340,7 @@ The request is a table: `x`, `y`, `height` (above the ground, default 60), `vx`,
 import "systems.missile" as Missiles
 import "systems.geometry" as Geometry
 
-missiles = Missiles.new clock
+missiles = Missiles.new clock: clock
 missiles\launch
   x: hero\getX!, y: hero\getY!, vx: 900, vy: 0, radius: 16, lifetime: 1.2, maxHits: 3
   model: "Abilities\\Weapons\\BallistaMissile\\BallistaMissile.mdl"
@@ -349,7 +361,7 @@ missiles\launch
 
 ### `systems.knockback`
 
-- `Knockbacks.new(clock, {onError?, pathing = "obstacles", sampleStep = 32})`
+- `Knockbacks.new({clock, onError?, pathing = "obstacles", sampleStep = 32})`
 - `apply(Unit, request)` returns a knockback; `get(Unit)`, `getCount()`, `dispose()`
 - a knockback: `getUnit()`, `isActive()`, `getRemaining()`, `dispose()`
 
@@ -374,7 +386,7 @@ ends with `completed`, `replaced`, `interrupted`, `invalid`, `blocked`, `dispose
 ```yue
 import "systems.knockback" as Knockbacks
 
-knockbacks = Knockbacks.new clock
+knockbacks = Knockbacks.new clock: clock
 angle = math.atan target\getY! - caster\getY!, target\getX! - caster\getX!
 knockbacks\apply target, angle: angle, distance: 300, duration: 0.4, falloff: "linear"
 ```
@@ -399,6 +411,9 @@ on every machine, in the game and outside it.
   - `"string"` with `maxLength` (at most 4095 bytes): any bytes, so names in any language fit.
   - `"list"` with `maxLength` (at most 4095) and `of`, a field of one of the three kinds above without a `key`: an
     array of that kind.
+- **Unknown keys are refused.** `Codec.new` raises for a key that its options (`version`, `secret`, `schemas`), a
+  schema (`version`, `fields`, `migrate`) or a field (`key`, `kind`, `min`, `max`, `maxLength`, `of`) does not define:
+  `[systems] Codec.new: schema 2, field "gold": unknown key 'maximum'`. A typo is caught when the codec is made.
 - **Numbers are whole.** A map that wants 12.5 stores 125: the game's floats are single precision.
 - **`encode` raises** at your line when the data does not fit, and names the field:
   `[systems] Codec.encode: field "gold": expected a whole number from 0 to 1000000`. A key the schema does not have
@@ -440,7 +455,7 @@ data, reason = codec\decode code, player\getName!
 
 ### `systems.sync`
 
-- `Sync.new(clock, {prefix = "mwsync", timeout = 10, maxLength = 8192, onError?})`
+- `Sync.new({clock, prefix = "mwsync", timeout = 10, maxLength = 8192, onError?})`
 - `start()`, `ask(Player, read, receive)`, `dispose()`
 
 One player's machine knows something the others do not: a file on its disk, its clock. `ask` gets it to every
@@ -460,7 +475,7 @@ machine safely.
 import "systems.sync" as Sync
 import "systems.time" as Time
 
-sync = Sync.new clock
+sync = Sync.new clock: clock
 sync\start!
 sync\ask player, (-> tostring Time.localUtc!), (text, reason) ->
   print player\getName!, "says the time is", text or reason
@@ -468,7 +483,7 @@ sync\ask player, (-> tostring Time.localUtc!), (text, reason) ->
 
 ### `systems.savefile`
 
-- `Savefile.new(clock, {codec, folder, prefix = "mwsave", timeout = 10, abilities?, onError?})`
+- `Savefile.new({clock, codec, folder, prefix = "mwsave", timeout = 10, abilities?, onError?})`
 - `start()`, `save(Player, slot, data)`, `load(Player, slot, callback)`, `dispose()`
 
 A player's data in a file on that player's own machine:
@@ -496,7 +511,7 @@ or `_`.
 ```yue
 import "systems.savefile" as Savefile
 
-saves = Savefile.new clock, codec: codec, folder: "ValeOfAsh"
+saves = Savefile.new clock: clock, codec: codec, folder: "ValeOfAsh"
 saves\start!
 
 saves\save player, "slot1", {gold: 500, hero: "Hpal", hardMode: true, items: {itemType}}

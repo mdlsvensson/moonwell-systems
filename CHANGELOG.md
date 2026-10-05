@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+A refactor for consistency (spec `2026-10-05-moonwell-systems-refactor-design` in the workspace). It breaks every
+constructor call; nothing else a map sees changes, and every save code of 0.5 still decodes.
+
+- Every constructor takes one options table; a system that needs a scheduler names it `clock`.
+- Options and requests refuse a key they do not define: `unknown key 'maxHit'`. When several are wrong, the first in
+  sorted order is named, the same on every machine. Buff definitions stay open for a map's own fields. The codec
+  refuses unknown keys in its options, schemas and fields.
+- Field errors name the key: `[systems] Missiles.launch: 'maxHits' expected a whole number of at least 1`.
+- `Buff:remove(reason)` is now `Buff:dispose(reason)`, so everything a map owns ends with `dispose()`.
+- `Aura.new` takes `interval`; `aura:start()` takes no argument.
+- A buff definition is checked when first applied, not on every apply.
+- `Signal:emit`, the buff store's poll and `Sync:dispose` no longer allocate per listener, per unit or per past
+  request.
+
+### Migrating from 0.5
+
+| 0.5 | 0.6 |
+|---|---|
+| `Scheduler.new(step, onError)` | `Scheduler.new{step = step, onError = onError}` |
+| `Signal.new(onError)`, `Scope.new(onError)` | `Signal.new{onError = onError}`, `Scope.new{onError = onError}` |
+| `BuffStore.new(clock, options)` | `BuffStore.new{clock = clock, ...}` |
+| `Aura.new(store, definition, source, query, onError)`, `aura:start(interval)` | `Aura.new{store = store, definition = definition, source = source, query = query, interval = interval, onError = onError}`, `aura:start()` |
+| `Dummies.new(clock, options)`, `Missiles.new(clock, options)`, `Knockbacks.new(clock, options)` | `X.new{clock = clock, ...}` |
+| `Sync.new(clock, options)`, `Savefile.new(clock, options)` | `X.new{clock = clock, ...}` |
+| `buff:remove(reason)` | `buff:dispose(reason)` |
+
 ## 0.5.1 (2026-10-02)
 
 - New `moonwell-library.json` at the library's root, naming `src` as its module folder. A map on Moonwell 0.6.0 or
