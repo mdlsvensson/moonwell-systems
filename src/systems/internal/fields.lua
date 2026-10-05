@@ -5,7 +5,9 @@ local Check = require('systems.internal.check')
 ---frames in between. Keys are checked in sorted order, so every machine reports the same first error.
 local Fields = {}
 
----@alias MoonwellSystems.FieldKind {[1]: fun(value: unknown): boolean, [2]: string}
+---@class MoonwellSystems.FieldKind
+---@field [1] fun(value: unknown): boolean
+---@field [2] string
 ---@alias MoonwellSystems.FieldSpec table<string, table>
 
 local function isBoolean(value) return type(value) == 'boolean' end
