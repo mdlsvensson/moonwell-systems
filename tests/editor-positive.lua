@@ -81,7 +81,7 @@ local missile = missiles:launch({x = 0, y = 0, height = 60, vx = 900, vy = 0, az
 print(missile:getEffect(), missiles:getCount())
 missiles:launch({x = 0, y = 0, vx = 500, vy = 0, radius = 8, lifetime = 1, followGround = true, face = false,
     effect = Effect.create(bolt, 0, 0)}):dispose()
-local knockbacks = scope:add(Knockbacks.new(clock, {sampleStep = 16, pathing = function(unit, fromX, fromY, toX, toY)
+local knockbacks = scope:add(Knockbacks.new({clock = clock, sampleStep = 16, pathing = function(unit, fromX, fromY, toX, toY)
     return unit ~= hero and terrain:isClear(toX, toY) and fromX ~= fromY
 end}))
 local knockback = knockbacks:apply(hero, {angle = math.atan(1, 0), distance = 300, duration = 0.4, falloff = 'linear',

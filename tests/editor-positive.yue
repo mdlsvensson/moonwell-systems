@@ -34,7 +34,7 @@ mw.on_main ->
       vx, vy, vz = missile\getVelocity!
       missile\setVelocity Geometry.turnToward vx, vy, vz, 0, 1, 0, 3 * dt
     onHit: (missile, unit) -> print unit\getName!, missile\getHitCount!
-  knockbacks = scope\add Knockbacks.new clock, pathing: "terrain"
+  knockbacks = scope\add Knockbacks.new clock: clock, pathing: "terrain"
   print knockbacks\getCount!
   codec = Codec.new
     version: 1, secret: "k3-vale-of-ash"

@@ -109,7 +109,7 @@ local entries = {
         .. 'm = Missiles.new clock: Scheduler.new!\nm\\dispose!\n', systems = {scheduler = true},
         wrappers = {unit = true, player = true, item = true, timer = true, effect = true}},
     knockback = {source = 'import "systems.knockback" as Knockbacks\nimport "systems.scheduler" as Scheduler\n'
-        .. 'k = Knockbacks.new Scheduler.new!\nk\\dispose!\n', systems = {scheduler = true},
+        .. 'k = Knockbacks.new clock: Scheduler.new!\nk\\dispose!\n', systems = {scheduler = true},
         wrappers = unitFamily},
     codec = {source = 'import "systems.codec" as Codec\n'
         .. 'c = Codec.new version: 1, secret: "s", schemas: {{version: 1, fields: {}}}\nprint c\\getVersion!\n',

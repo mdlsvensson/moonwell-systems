@@ -1,7 +1,9 @@
 local Callback = require('systems.internal.callback')
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
 local Ground = require('systems.internal.ground')
 local Ordered = require('systems.internal.ordered')
+local Stepper = require('systems.internal.stepper')
 local Scheduler = require('systems.scheduler')
 local Unit = require('wrappers.unit')
 
@@ -17,9 +19,7 @@ local sqrt, ceil, cos, sin = math.sqrt, math.ceil, math.cos, math.sin
 ---@field package sampleStep number
 ---@field package ground MoonwellSystems.GroundState
 ---@field package active MoonwellSystems.Ordered Unit to its Knockback, in apply order.
----@field package visit fun(unit: MoonwellWrappers.Unit, item: MoonwellSystems.Knockback)
----@field package ticking boolean
----@field package cancel (fun())? Cancels the scheduler task; nil while nothing is pushed.
+---@field package stepper MoonwellSystems.Stepper
 ---@field package disposed boolean
 local Knockbacks = {}
 Knockbacks.__index = Knockbacks
@@ -31,6 +31,7 @@ Knockbacks.__index = Knockbacks
 ---| fun(unit: MoonwellWrappers.Unit, fromX: number, fromY: number, toX: number, toY: number): ...
 
 ---@class MoonwellSystems.KnockbackOptions
+---@field clock MoonwellSystems.Scheduler Drives the knockbacks; units move once per scheduler step.
 ---@field onError (fun(message: string): ...)? Receives callback failures; default prints them.
 ---@field pathing ('obstacles'|'terrain'|'none'|MoonwellSystems.KnockbackPathing)? Default 'obstacles'.
 ---@field sampleStep number? The largest gap between pathing samples along a move. Default 32.
@@ -61,14 +62,24 @@ Knockbacks.Knockback = Knockback
 
 local MAX_SAMPLES = 4096
 
----@param system MoonwellSystems.Knockbacks
-local function stop(system)
-    local cancel = system.cancel
-    if cancel then
-        system.cancel = nil
-        cancel()
-    end
+local function pathingPolicy(value)
+    return type(value) == 'function' or value == 'obstacles' or value == 'terrain' or value == 'none'
 end
+
+local OPTIONS = {
+    clock = {Fields.class(Scheduler, 'a Scheduler'), required = true},
+    onError = {'function'},
+    pathing = {Fields.test(pathingPolicy, "'obstacles', 'terrain', 'none' or a function"), default = 'obstacles'},
+    sampleStep = {'positive', default = 32},
+}
+
+local PUSH = {
+    angle = {'finite', required = true},
+    distance = {'nonNegative', required = true},
+    duration = {'positive', required = true},
+    falloff = {Fields.enum({'none', 'linear'}), default = 'none'},
+    onEnd = {'function'},
+}
 
 ---Ends a knockback once: releases the unit (unless a newer knockback owns it), then runs onEnd.
 ---@param item MoonwellSystems.Knockback
@@ -81,7 +92,7 @@ local function finish(item, reason)
     if active:get(item.unit) == item then active:delete(item.unit) end
     local onEnd = item.onEnd
     if onEnd then Callback.call('Knockback end', system.onError, onEnd, item, reason) end
-    if active:getSize() == 0 and not system.ticking then stop(system) end
+    system.stepper:settle()
 end
 
 ---Whether the move is allowed. Nil when the pathing function failed and the knockback has ended.
@@ -123,7 +134,8 @@ end
 ---@param dt number
 local function advance(system, item, dt)
     local raw = item.raw
-    -- False for a dead unit and for a removed one, which covers a disposed wrapper: Unit wrappers end by remove().
+    -- False for a dead unit and for a removed one. That covers a disposed wrapper, which ends by remove() or, since
+    -- wrappers v0.9.0, by Unit.autoDispose after its unit was removed.
     if not UnitAlive(raw) then
         finish(item, 'invalid')
         return
@@ -150,47 +162,19 @@ local function advance(system, item, dt)
     if t1 >= duration then finish(item, 'completed') end
 end
 
----@param clock MoonwellSystems.Scheduler Drives the knockbacks; units move once per scheduler step.
----@param options MoonwellSystems.KnockbackOptions?
+---@param options MoonwellSystems.KnockbackOptions
 ---@return MoonwellSystems.Knockbacks
-function Knockbacks.new(clock, options)
-    Check.receiver(clock, Scheduler, 'Scheduler', 'Knockbacks.new')
-    if options == nil then options = {} end
-    if type(options) ~= 'table' then error('[systems] Knockbacks.new: expected an options table', 2) end
-    Callback.optional(options.onError, 'Knockbacks.new')
-    local pathing, sampleStep = options.pathing, options.sampleStep
-    if pathing == nil then pathing = 'obstacles' end
-    if type(pathing) ~= 'function' and pathing ~= 'obstacles' and pathing ~= 'terrain' and pathing ~= 'none' then
-        error('[systems] Knockbacks.new: expected knockback options: pathing', 2)
-    end
-    if sampleStep == nil then sampleStep = 32 end
-    if not Check.finite(sampleStep) or sampleStep <= 0 then
-        error('[systems] Knockbacks.new: expected knockback options: sampleStep', 2)
-    end
+function Knockbacks.new(options)
+    local read = Fields.options(options, OPTIONS, 'Knockbacks.new')
     ---@type MoonwellSystems.Knockbacks
     local system = setmetatable({
-        clock = clock, onError = options.onError, pathing = pathing, sampleStep = sampleStep, ground = Ground.new(),
-        active = Ordered.new(), ticking = false, disposed = false,
+        clock = read.clock, onError = read.onError, pathing = read.pathing, sampleStep = read.sampleStep,
+        ground = Ground.new(), active = Ordered.new(), disposed = false,
     }, Knockbacks)
-    local dt = clock:getStep()
-    system.visit = function(_, item) advance(system, item, dt) end
+    local function visit(_, item) advance(system, item, read.clock:getStep()) end
+    system.stepper = Stepper.new(read.clock, function() system.active:each(visit) end,
+        function() return system.active:getSize() == 0 end)
     return system
-end
-
----@param value unknown
----@return boolean
-local function liveUnit(value) return getmetatable(value) == Unit and not value:isDisposed() end
-
----@param request table
----@return string? field The first invalid field, or nil.
-local function invalid(request)
-    if not Check.finite(request.angle) then return 'angle' end
-    if not Check.finite(request.distance) or request.distance < 0 then return 'distance' end
-    if not Check.finite(request.duration) or request.duration <= 0 then return 'duration' end
-    local falloff = request.falloff
-    if falloff ~= nil and falloff ~= 'none' and falloff ~= 'linear' then return 'falloff' end
-    if request.onEnd ~= nil and type(request.onEnd) ~= 'function' then return 'onEnd' end
-    return nil
 end
 
 ---Pushes a unit, replacing its current knockback (which ends with 'replaced'). It first moves on the next scheduler
@@ -201,29 +185,20 @@ end
 function Knockbacks:apply(unit, request)
     local system = Check.receiver(self, Knockbacks, 'Knockbacks', 'Knockbacks.apply')
     if system.disposed then error('[systems] Knockbacks.apply: the system is disposed', 2) end
-    if not liveUnit(unit) then error('[systems] Knockbacks.apply: expected a live Unit', 2) end
-    if type(request) ~= 'table' then error('[systems] Knockbacks.apply: expected a knockback request table', 2) end
-    local field = invalid(request)
-    if field then error('[systems] Knockbacks.apply: expected a knockback request: ' .. field, 2) end
-    local linear = request.falloff == 'linear'
+    if not Check.liveUnit(unit, Unit) then error('[systems] Knockbacks.apply: expected a live Unit', 2) end
+    local push = Fields.request(request, PUSH, 'Knockbacks.apply', 'a knockback request table')
+    local linear = push.falloff == 'linear'
     ---@type MoonwellSystems.Knockback
     local item = setmetatable({
-        system = system, unit = unit, raw = unit:getHandle(), active = true, dirX = cos(request.angle),
-        dirY = sin(request.angle), speed = (linear and 2 or 1) * request.distance / request.duration,
-        duration = request.duration, linear = linear, elapsed = 0, onEnd = request.onEnd,
+        system = system, unit = unit, raw = unit:getHandle(), active = true, dirX = cos(push.angle),
+        dirY = sin(push.angle), speed = (linear and 2 or 1) * push.distance / push.duration,
+        duration = push.duration, linear = linear, elapsed = 0, onEnd = push.onEnd,
     }, Knockback)
     local previous = system.active:get(unit)
     -- Install first: if the old knockback's onEnd applies again, that newer one replaces this one.
     system.active:set(unit, item)
     if previous then finish(previous, 'replaced') end
-    if not system.cancel then
-        system.cancel = system.clock:every(system.clock:getStep(), function()
-            system.ticking = true
-            system.active:each(system.visit)
-            system.ticking = false
-            if system.active:getSize() == 0 then stop(system) end
-        end)
-    end
+    system.stepper:wake()
     return item
 end
 
@@ -249,7 +224,7 @@ function Knockbacks:dispose()
     if system.disposed then return end
     system.disposed = true
     system.active:each(function(_, item) finish(item, 'disposed') end)
-    stop(system)
+    system.stepper:dispose()
     Ground.dispose(system.ground)
 end
 

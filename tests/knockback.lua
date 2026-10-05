@@ -58,8 +58,10 @@ local function setup(step, options)
     items = {}
     bounds = {minX = -10000, minY = -10000, maxX = 10000, maxY = 10000}
     local clock = Scheduler.new({step = step or 1})
+    local merged = {clock = clock}
+    for key, value in pairs(options or {}) do merged[key] = value end
     resetCalls()
-    return Knockbacks.new(clock, options), clock
+    return Knockbacks.new(merged), clock
 end
 -- A Unit wrapper on a fresh raw handle at the origin.
 local function footman(fields)
@@ -285,13 +287,13 @@ end)
 
 test('arguments are checked at the caller', function()
     local clock = Scheduler.new({step = 1})
-    failsAt(function() Knockbacks.new({}) end, 'Knockbacks.new: expected Scheduler')
-    failsAt(function() Knockbacks.new(clock, 5) end, 'Knockbacks.new: expected an options table')
-    failsAt(function() Knockbacks.new(clock, {onError = 5}) end, 'Knockbacks.new: expected a callback function')
-    failsAt(function() Knockbacks.new(clock, {pathing = 'walls'}) end,
-        'Knockbacks.new: expected knockback options: pathing')
-    failsAt(function() Knockbacks.new(clock, {sampleStep = 0}) end,
-        'Knockbacks.new: expected knockback options: sampleStep')
+    failsAt(function() Knockbacks.new({}) end, "Knockbacks.new: 'clock' expected a Scheduler")
+    failsAt(function() Knockbacks.new(clock) end, 'Knockbacks.new: expected an options table')
+    failsAt(function() Knockbacks.new({clock = clock, onError = 5}) end, "Knockbacks.new: 'onError' expected a function")
+    failsAt(function() Knockbacks.new({clock = clock, pathing = 'walls'}) end,
+        "Knockbacks.new: 'pathing' expected 'obstacles', 'terrain', 'none' or a function")
+    failsAt(function() Knockbacks.new({clock = clock, sampleStep = 0}) end,
+        "Knockbacks.new: 'sampleStep' expected a finite positive number")
     local system = setup()
     local unit = footman()
     local gone = footman()
@@ -305,12 +307,24 @@ test('arguments are checked at the caller', function()
     }
     for _, case in ipairs(cases) do
         failsAt(function() system:apply(unit, push(case[2])) end,
-            'Knockbacks.apply: expected a knockback request: ' .. case[1])
+            "Knockbacks.apply: '" .. case[1] .. "'")
     end
+    failsAt(function() system:apply(unit, {angle = 0, distance = 1, duration = 1, fallof = 'linear'}) end,
+        "Knockbacks.apply: unknown key 'fallof'")
     eq(system:getCount(), 0)
     failsAt(function() system:get({}) end, 'Knockbacks.get: expected Unit')
     failsAt(function() Knockbacks.getCount({}) end, 'Knockbacks.getCount: expected Knockbacks')
     local knockback = system:apply(unit, push())
     failsAt(function() knockback.getUnit({}) end, 'Knockback.getUnit: expected Knockback')
     failsAt(function() knockback.dispose({}) end, 'Knockback.dispose: expected Knockback')
+end)
+
+test('the stepper starts with the first push and stops when the last one ends', function()
+    local system, clock = setup()
+    local unit = footman()
+    eq(clock:getPending(), 0)
+    local push = system:apply(unit, {angle = 0, distance = 10, duration = 3})
+    eq(clock:getPending(), 1)
+    push:dispose()
+    eq(clock:getPending(), 0)
 end)

@@ -38,8 +38,8 @@ round = (value) ->
 knockbackGate = (owner) ->
   clock = Scheduler.new!
   clock\start!
-  knockbacks = Knockbacks.new clock
-  throughTrees = Knockbacks.new clock, pathing: "terrain"
+  knockbacks = Knockbacks.new clock: clock
+  throughTrees = Knockbacks.new clock: clock, pathing: "terrain"
   -- Pushes a unit, and prints why the push ended and how far the unit moved.
   push = (system, number, label, unit, request) ->
     startX, startY = unit\getX!, unit\getY!
@@ -88,7 +88,7 @@ knockbackGate = (owner) ->
       unit = Unit.create owner, FOOTMAN, 1700 + (index % 10) * 40, 1300 + math.floor(index / 10) * 40, 0
       unit\pause true
       unit
-    pushed = Knockbacks.new bench
+    pushed = Knockbacks.new clock: bench
     for unit in *herd
       pushed\apply unit, angle: 0, distance: 60, duration: 15
     started = os.clock!
