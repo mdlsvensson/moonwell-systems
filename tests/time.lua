@@ -73,3 +73,8 @@ test('arguments are checked at the caller', function()
         'Time.formatUtc: expected a date with numeric year, month, day, hour, minute and second')
     failsAt(function() Time.formatDuration('5') end, 'Time.formatDuration: expected a number')
 end)
+
+test('infinite and NaN values are not whole numbers', function()
+    eq(Time.unixToUtc(math.huge), nil); eq(Time.unixToUtc(0 / 0), nil); eq(Time.dayOfWeek(-math.huge), nil)
+    eq(Time.utcToUnix({year = 2000, month = 1, day = math.huge}), nil)
+end)

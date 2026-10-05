@@ -1,3 +1,5 @@
+local Check = require('systems.internal.check')
+
 ---Calendar and display helpers for UTC dates and Unix seconds, and the local clock. Timestamps are Warcraft's 32-bit
 ---integers: from -2147483648 (1901-12-13 20:45:52) to 2147483647 (2038-01-19 03:14:07). Pure except localUtc().
 local Time = {}
@@ -12,9 +14,7 @@ local Time = {}
 
 local MIN, MAX = -2147483648, 2147483647
 
-local function integer(value, low, high)
-    return math.type(value) ~= nil and value >= low and value <= high and math.floor(value) == value
-end
+local function integer(value, low, high) return Check.integer(value) and value >= low and value <= high end
 
 ---The value as an integer; the caller has checked it with integer().
 ---@param value number

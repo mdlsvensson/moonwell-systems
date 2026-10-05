@@ -1,4 +1,5 @@
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
 local Ground = require('systems.internal.ground')
 
 ---Terrain queries: ground height, walkability and the world bounds. A Terrain owns one location, one hidden item and
@@ -8,16 +9,13 @@ local Ground = require('systems.internal.ground')
 local Terrain = {}
 Terrain.__index = Terrain
 
+local OPTIONS = {itemType = {Fields.integer()}}
+
 ---@param options {itemType: integer?}? `itemType` is the item isClear places; default 'wolg', a standard item.
 ---@return MoonwellSystems.Terrain
 function Terrain.new(options)
-    if options == nil then options = {} end
-    if type(options) ~= 'table' then error('[systems] Terrain.new: expected an options table', 2) end
-    local itemType = options.itemType
-    if itemType ~= nil and (math.type(itemType) == nil or math.floor(itemType) ~= itemType) then
-        error('[systems] Terrain.new: expected an item type', 2)
-    end
-    return setmetatable({state = Ground.new(itemType)}, Terrain)
+    local read = Fields.options(options, OPTIONS, 'Terrain.new')
+    return setmetatable({state = Ground.new(read.itemType)}, Terrain)
 end
 
 ---The live state of a query's receiver; raises at the public function's caller.
