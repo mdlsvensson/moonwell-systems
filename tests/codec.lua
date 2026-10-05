@@ -334,3 +334,17 @@ test('a codec keeps its own copy of the schemas, and its methods check their rec
     failsAt(function() saves.getVersion({}) end, '[systems] Codec.getVersion: expected Codec')
     failsAt(function() saves.getMaxLength({}) end, '[systems] Codec.getMaxLength: expected Codec')
 end)
+
+test('unknown keys are refused in options, schemas and fields; codes do not change', function()
+    local field = {key = 'gold', kind = 'integer', min = 0, max = 100}
+    failsAt(function() Codec.new({version = 1, secret = 's', schemas = {{version = 1, fields = {field}}}, salt = 1}) end,
+        "Codec.new: unknown key 'salt'")
+    failsAt(function() Codec.new({version = 1, secret = 's', schemas = {{version = 1, fields = {field}, migrat = 1}}}) end,
+        "Codec.new: schema 1: unknown key 'migrat'")
+    failsAt(function() Codec.new({version = 1, secret = 's', schemas = {{version = 1, fields = {
+        {key = 'name', kind = 'string', maxLenght = 4, maxLength = 4}}}}}) end,
+        "Codec.new: schema 1, field \"name\": unknown key 'maxLenght'")
+    failsAt(function() Codec.new({version = 1, secret = 's', schemas = {{version = 1, fields = {
+        {key = 'ids', kind = 'list', maxLength = 2, of = {kind = 'integer', min = 0, max = 1, step = 1}}}}}}) end,
+        "Codec.new: schema 1, field \"ids\": of: unknown key 'step'")
+end)

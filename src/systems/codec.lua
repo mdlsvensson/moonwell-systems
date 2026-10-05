@@ -1,4 +1,5 @@
 local Check = require('systems.internal.check')
+local Fields = require('systems.internal.fields')
 
 ---Save codes: data packed by a versioned schema into 64 symbols, with a keyed check value and migrations (spec
 ---2026-10-01 release 5 §4). Pure: it calls no native, so a code is the same on every machine.
@@ -57,11 +58,15 @@ local MAX_BITS = (MAX_SYMBOLS - CHECK_SYMBOLS) * 6
 local VALUES = {}
 for index = 1, #ALPHABET do VALUES[ALPHABET:byte(index)] = index - 1 end
 
----The whole number `value` holds, or nil. math.tointeger alone would also convert strings on Lua 5.4.
+local OPTION_KEYS = {version = true, secret = true, schemas = true}
+local SCHEMA_KEYS = {version = true, fields = true, migrate = true}
+local FIELD_KEYS = {key = true, kind = true, min = true, max = true, maxLength = true, of = true}
+
+---The whole number `value` holds, or nil.
 ---@param value unknown
 ---@return integer?
 local function whole(value)
-    if type(value) ~= 'number' then return nil end
+    if not Check.integer(value) then return nil end
     return math.tointeger(value)
 end
 
@@ -85,6 +90,8 @@ end
 ---@return string? problem
 local function compileField(field, keyed)
     if type(field) ~= 'table' then return nil, 'expected a field table' end
+    local unknown = Fields.unknown(field, FIELD_KEYS)
+    if unknown then return nil, "unknown key '" .. unknown .. "'" end
     local kind = field.kind
     local compiled = {key = field.key, kind = kind, min = 0, max = 0, width = 0, maxLength = 0}
     if kind == 'integer' then
@@ -134,6 +141,8 @@ local function compileSchema(schema, current)
         return nil, 'expected a schema version from 1 to ' .. current
     end
     local label = 'schema ' .. version
+    local unknown = Fields.unknown(schema, SCHEMA_KEYS)
+    if unknown then return nil, label .. ": unknown key '" .. unknown .. "'" end
     if schema.migrate ~= nil and type(schema.migrate) ~= 'function' then
         return nil, label .. ': expected migrate to be a function'
     end
@@ -376,6 +385,8 @@ end
 ---@return MoonwellSystems.Codec
 function Codec.new(options)
     if type(options) ~= 'table' then error('[systems] Codec.new: expected an options table', 2) end
+    local unknown = Fields.unknown(options, OPTION_KEYS)
+    if unknown then error("[systems] Codec.new: unknown key '" .. unknown .. "'", 2) end
     local version = whole(options.version)
     if not version or version < 1 or version > MAX_VERSION then
         error('[systems] Codec.new: expected a version from 1 to ' .. MAX_VERSION, 2)
