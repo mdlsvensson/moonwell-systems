@@ -45,9 +45,9 @@ local LOCUST = 1097625443 -- 'Aloc'
 
 local OPTIONS = {clock = {Fields.class(Scheduler, 'a Scheduler'), required = true}, onError = {'function'}}
 
-local function order(value) return (type(value) == 'string' and value ~= '') or math.type(value) == 'integer' end
-local function widget(value) return type(value) == 'table' and type(value.getLife) == 'function' end
-local function point(value) return type(value) == 'table' and Check.finite(value.x) and Check.finite(value.y) end
+local function isOrder(value) return (type(value) == 'string' and value ~= '') or math.type(value) == 'integer' end
+local function isWidget(value) return type(value) == 'table' and type(value.getLife) == 'function' end
+local function isPoint(value) return type(value) == 'table' and Check.finite(value.x) and Check.finite(value.y) end
 
 local CAST = {
     owner = {Fields.class(PlayerWrapper, 'a Player'), required = true},
@@ -57,9 +57,9 @@ local CAST = {
     facing = {'finite', default = 0},
     ability = {Fields.integer(), required = true},
     level = {Fields.integer(1), default = 1},
-    order = {Fields.test(order, 'an order string or order id'), required = true},
-    target = {Fields.test(widget, 'a widget')},
-    point = {Fields.test(point, 'a point {x, y} of finite numbers')},
+    order = {Fields.test(isOrder, 'an order string or order id'), required = true},
+    target = {Fields.test(isWidget, 'a widget')},
+    point = {Fields.test(isPoint, 'a point {x, y} of finite numbers')},
     duration = {'positive', required = true},
     source = {Fields.class(Unit, 'a Unit')},
 }
