@@ -75,22 +75,28 @@ function Ordered:keys()
     return keys
 end
 
+---@param map MoonwellSystems.Ordered
+---@param fn fun(key: any, value: any)
+---@param order any[]
+---@param limit integer
+local function loop(map, fn, order, limit)
+    for index = 1, limit do
+        local key = order[index]
+        -- The position check also skips a key deleted and added again: its new place is past the limit.
+        if key ~= HOLE and map.positions[key] == index then fn(key, map.values[key]) end
+    end
+end
+
 ---Calls fn(key, value) for the entries present at the start that are still present. Entries added during the call wait
 ---for the next one. An error in fn propagates after the map is restored.
 ---@param fn fun(key: any, value: any)
 function Ordered:each(fn)
     self.iterating = self.iterating + 1
-    local order, limit = self.order, #self.order
-    local ok, err = pcall(function()
-        for index = 1, limit do
-            local key = order[index]
-            -- The position check also skips a key deleted and added again: its new place is past the limit.
-            if key ~= HOLE and self.positions[key] == index then fn(key, self.values[key]) end
-        end
-    end)
+    local ok, err = pcall(loop, self, fn, self.order, #self.order)
     self.iterating = self.iterating - 1
     compact(self)
     if not ok then error(err, 0) end
 end
 
 return Ordered
+

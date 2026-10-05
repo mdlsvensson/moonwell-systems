@@ -53,3 +53,16 @@ test('tables are keys by identity', function()
     map:set(first, 'one'); map:set(second, 'two')
     eq(map:get(first), 'one'); eq(map:keys()[2], second)
 end)
+
+test('each still restores the map after an error and allows a nested each', function()
+    local map = Ordered.new()
+    map:set('a', 1); map:set('b', 2); map:set('c', 3)
+    local ok = pcall(function() map:each(function(key) if key == 'b' then error('stop') end end) end)
+    eq(ok, false)
+    map:delete('a'); map:delete('b')
+    local seen = {}
+    map:each(function(key) map:each(function(inner) seen[#seen + 1] = key .. inner end) end)
+    eq(table.concat(seen, ','), 'cc')
+    eq(#map:keys(), 1)
+end)
+

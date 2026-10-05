@@ -62,3 +62,32 @@ test('receiver and finite', function()
     eq(Check.finite(0 / 0), false); eq(Check.finite(math.huge), false); eq(Check.finite(-math.huge), false)
     eq(Check.finite('1'), false); eq(Check.finite(nil), false)
 end)
+
+test('integer, positive, nonNegative and identifier', function()
+    eq(Check.integer(3), true); eq(Check.integer(-2), true); eq(Check.integer(4.0), true)
+    eq(Check.integer(1.5), false); eq(Check.integer('3'), false); eq(Check.integer(math.huge), false)
+    eq(Check.integer(0 / 0), false); eq(Check.integer(nil), false)
+    eq(Check.positive(0.5), true); eq(Check.positive(0), false); eq(Check.positive(math.huge), false)
+    eq(Check.positive('1'), false)
+    eq(Check.nonNegative(0), true); eq(Check.nonNegative(-0.1), false); eq(Check.nonNegative(math.huge), false)
+    eq(Check.identifier('mw-save_1'), true); eq(Check.identifier(string.rep('a', 32)), true)
+    eq(Check.identifier(string.rep('a', 33)), false); eq(Check.identifier(''), false)
+    eq(Check.identifier('a b'), false); eq(Check.identifier(5), false)
+end)
+
+test('liveUnit takes the class it checks against', function()
+    local Unit = {}
+    local live = setmetatable({isDisposed = function() return false end}, Unit)
+    local gone = setmetatable({isDisposed = function() return true end}, Unit)
+    eq(Check.liveUnit(live, Unit), true); eq(Check.liveUnit(gone, Unit), false)
+    eq(Check.liveUnit({isDisposed = function() return false end}, Unit), false); eq(Check.liveUnit(nil, Unit), false)
+end)
+
+test('reason drops the position and a systems label, and keeps a wrappers label', function()
+    eq(Callback.reason('src/x.lua:12: [systems] Codec.encode: field "a": bad'), 'field "a": bad')
+    eq(Callback.reason('src/x.lua:3: [wrappers] Effect.create: native returned nil'),
+        '[wrappers] Effect.create: native returned nil')
+    eq(Callback.reason('plain'), 'plain')
+    eq(Callback.reason(setmetatable({}, {__tostring = function() error('no') end})), '<unprintable error>')
+end)
+

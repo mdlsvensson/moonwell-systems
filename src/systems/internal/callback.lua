@@ -57,4 +57,13 @@ function Callback.call(label, onError, fn, ...)
     return false
 end
 
+---Another module's error as a reason: without its position and without a leading `[systems] <Class>.<method>: `
+---label. A `[wrappers]` label is kept.
+---@param message unknown
+---@return string
+function Callback.reason(message)
+    return (text(message):gsub('^.-:%d+: ', ''):gsub('^%[systems%] [%w.]+: ', ''))
+end
+
 return Callback
+
