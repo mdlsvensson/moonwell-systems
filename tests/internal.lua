@@ -3,7 +3,6 @@ local Check = require('systems.internal.check')
 
 -- Stand-ins for public functions: the checks raise at the caller of these.
 local function api(value) Callback.check(value, 'Probe.api') end
-local function maybe(value) Callback.optional(value, 'Probe.maybe') end
 local function helper(value) Callback.check(value, 'Probe.helper', 1) end
 local function viaHelper(value) helper(value) end
 local Class = {}
@@ -47,11 +46,9 @@ test('an unprintable error is still reported', function()
     eq(PRINTED[1], '[systems] Probe failed: <unprintable error>')
 end)
 
-test('check and optional raise at the public caller', function()
+test('check raises at the public caller, through a helper too', function()
     failsAt(function() api(5) end, 'Probe.api: expected a callback function')
     api(function() end)
-    failsAt(function() maybe('x') end, 'Probe.maybe: expected a callback function')
-    maybe(nil); maybe(print)
     failsAt(function() viaHelper(nil) end, 'Probe.helper: expected a callback function')
 end)
 

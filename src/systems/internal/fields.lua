@@ -84,6 +84,16 @@ local function namesOf(spec)
     return names
 end
 
+---A key as text. A table, function, userdata or thread has no text that is the same on every machine (tostring gives
+---its address), so it is shown by its type: `<table>`.
+---@param key unknown
+---@return string
+local function show(key)
+    local kind = type(key)
+    if kind == 'string' or kind == 'number' or kind == 'boolean' then return tostring(key) end
+    return '<' .. kind .. '>'
+end
+
 ---The first key of `value`, in sorted order as text, that `keys` does not define; nil when there is none.
 ---@param value table
 ---@param keys table
@@ -92,7 +102,7 @@ function Fields.unknown(value, keys)
     local first
     for key in pairs(value) do
         if keys[key] == nil then
-            local shown = tostring(key)
+            local shown = show(key)
             if first == nil or shown < first then first = shown end
         end
     end

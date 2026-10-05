@@ -55,6 +55,22 @@ test('unknown keys are refused, the first in sorted order, array keys included',
     eq(Fields.unknown({b = 1, a = 2, name = 3}, SPEC), 'a'); eq(Fields.unknown({name = 1}, SPEC), nil)
 end)
 
+test('a key with no stable text is shown by its type, the same on every machine', function()
+    failsAt(function() new({name = 'a', [{}] = 1}) end, "Probe.new: unknown key '<table>'")
+    failsAt(function() new({name = 'a', [function() end] = 1}) end, "Probe.new: unknown key '<function>'")
+    eq(Fields.unknown({[coroutine.create(function() end)] = 1}, SPEC), '<thread>')
+    -- Strings, numbers and booleans keep their own text.
+    eq(Fields.unknown({[true] = 1}, SPEC), 'true'); eq(Fields.unknown({[2.5] = 1}, SPEC), '2.5')
+    -- The smallest by text is reported, whatever the table's address is: '<' sorts after the digits and before
+    -- every letter.
+    eq(Fields.unknown({name = 'a', [{}] = 1, [7] = 2}, SPEC), '7')
+    for _ = 1, 20 do
+        eq(Fields.unknown({name = 'a', [{}] = 1, zeta = 2}, SPEC), '<table>')
+        eq(Fields.unknown({name = 'a', [{}] = 1, [function() end] = 2, zeta = 3}, SPEC), '<function>')
+        failsAt(function() new({name = 'a', [{}] = 1, zeta = 2}) end, "Probe.new: unknown key '<table>'")
+    end
+end)
+
 test('wrong values name the key and what was expected, the first in sorted order', function()
     failsAt(function() new({name = 'a', step = 0}) end, "Probe.new: 'step' expected a finite positive number")
     failsAt(function() new({name = 'a', count = 11}) end, "Probe.new: 'count' expected a whole number from 1 to 10")

@@ -12,16 +12,6 @@ function Callback.check(value, operation, depth)
     end
 end
 
----Accepts nil or a function.
----@param value unknown
----@param operation string
----@param depth integer?
-function Callback.optional(value, operation, depth)
-    if value ~= nil and type(value) ~= 'function' then
-        error('[systems] ' .. operation .. ': expected a callback function', 3 + (depth or 0))
-    end
-end
-
 ---@param message unknown
 ---@return string
 local function text(message)

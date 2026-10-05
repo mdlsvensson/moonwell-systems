@@ -171,7 +171,9 @@ function Knockbacks.new(options)
         clock = read.clock, onError = read.onError, pathing = read.pathing, sampleStep = read.sampleStep,
         ground = Ground.new(), active = Ordered.new(), disposed = false,
     }, Knockbacks)
-    local function visit(_, item) advance(system, item, read.clock:getStep()) end
+    -- The clock's step never changes: read it once, so a step makes no method call per knockback.
+    local dt = read.clock:getStep()
+    local function visit(_, item) advance(system, item, dt) end
     system.stepper = Stepper.new(read.clock, function() system.active:each(visit) end,
         function() return system.active:getSize() == 0 end)
     return system

@@ -282,7 +282,8 @@ local function drain(system)
         end
     end
     system.draining = false
-    if queued(system) == 0 then emptyQueue(system); system.chain = 0 end
+    -- Every slot that was read is nil again: reset the indexes and keep the table. This runs after every hit.
+    if queued(system) == 0 then system.first, system.last, system.chain = 1, 0, 0 end
 end
 
 ---@param system MoonwellSystems.DamageSystem
