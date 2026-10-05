@@ -36,7 +36,7 @@ print(applied:isActive(), buffs:has(hero, 'slow'), buffs:stacks(hero, 'slow'), #
 local aura = scope:add(Aura.new({store = buffs, definition = {id = 'devotion', kind = 'aura'}, source = hero,
     query = function() return {hero} end, interval = 0.5}))
 aura:start()
-local dummies = scope:add(Dummies.new(clock))
+local dummies = scope:add(Dummies.new({clock = clock}))
 local lease = dummies:cast({owner = owner, typeId = 1697656880, x = 0, y = 0, ability = 1095267426,
     order = 'thunderbolt', target = hero, duration = 2, source = hero})
 print(lease:isOrderAccepted(), dummies:sourceOf(lease:getUnit()), dummies:getCount())

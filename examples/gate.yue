@@ -22,7 +22,7 @@ releaseTwoGate = (owner) ->
   hero = Unit.create owner, $FourCC("Hpal"), -300, 0, 0
   bolted = Unit.create hostile, $FourCC("hfoo"), 0, 250, 270
   bolted\pause true
-  dummies = Dummies.new clock
+  dummies = Dummies.new clock: clock
   lease = dummies\cast
     owner: owner, typeId: $FourCC("e000"), x: -300, y: 0, ability: $FourCC("AHtb"), order: "thunderbolt"
     target: bolted, duration: 2, source: hero

@@ -25,7 +25,7 @@ damageGate = (owner) ->
     unit\pause true
   victim\setMaxLife 2000
   victim\setLife 2000
-  dummies = Dummies.new clock
+  dummies = Dummies.new clock: clock
   damage = DamageSystem.new sourceOf: dummies\sourceOf
   damage\beforeArmor (hit) ->
     if hit.metadata == "crit"

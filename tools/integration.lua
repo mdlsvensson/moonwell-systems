@@ -98,7 +98,7 @@ local entries = {
     aura = {source = 'import "systems.aura" as Aura\nprint Aura\n', systems = {buffs = true, scheduler = true},
         wrappers = unitFamily},
     dummy = {source = 'import "systems.dummy" as Dummies\nimport "systems.scheduler" as Scheduler\n'
-        .. 'd = Dummies.new Scheduler.new!\nd\\dispose!\n', systems = {scheduler = true}, wrappers = unitFamily},
+        .. 'd = Dummies.new clock: Scheduler.new!\nd\\dispose!\n', systems = {scheduler = true}, wrappers = unitFamily},
     damage = {source = 'import "systems.damage" as DamageSystem\nd = DamageSystem.new!\nd\\dispose!\n', systems = {},
         wrappers = {unit = true, player = true, item = true, timer = true, damage = true}},
     geometry = {source = 'import "systems.geometry" as Geometry\nprint Geometry.length 3, 4\n', systems = {},

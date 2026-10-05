@@ -21,7 +21,7 @@ mw.on_main ->
   changed\subscribe (value) -> print value
   changed\emit 1
   print Time.formatDuration 65
-  dummies = scope\add Dummies.new clock
+  dummies = scope\add Dummies.new clock: clock
   damage = scope\add DamageSystem.new sourceOf: dummies\sourceOf
   damage\start!
   damage\beforeArmor (hit) -> hit\setAmount hit.amount * 2
