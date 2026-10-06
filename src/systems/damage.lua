@@ -26,8 +26,8 @@ local Unit = require('wrappers.unit')
 ---@field package timer MoonwellWrappers.Timer? The settle timer.
 ---@field package scheduled boolean Whether the settle timer is running.
 ---@field package onSettle fun(): ...
----@field package damagingToken MoonwellWrappers.DamageListener?
----@field package damagedToken MoonwellWrappers.DamageListener?
+---@field package cancelDamaging MoonwellWrappers.Cancel? Removes the wrappers' DAMAGING listener; nil while stopped.
+---@field package cancelDamaged MoonwellWrappers.Cancel? Removes the wrappers' DAMAGED listener; nil while stopped.
 ---@field package queue table<integer, MoonwellSystems.DamageDeal> Deals waiting for the current hit, from `first`.
 ---@field package first integer
 ---@field package last integer
@@ -385,8 +385,8 @@ end
 ---Removes what start() added.
 ---@param system MoonwellSystems.DamageSystem
 local function release(system)
-    if system.damagingToken then Events.off(system.damagingToken); system.damagingToken = nil end
-    if system.damagedToken then Events.off(system.damagedToken); system.damagedToken = nil end
+    if system.cancelDamaging then system.cancelDamaging(); system.cancelDamaging = nil end
+    if system.cancelDamaged then system.cancelDamaged(); system.cancelDamaged = nil end
     if system.timer then system.timer:destroy(); system.timer = nil end
     system.scheduled = false
 end
@@ -417,8 +417,8 @@ function DamageSystem:start()
     if system.running then return end
     local ok, failure = pcall(function()
         system.timer = Timer.create()
-        system.damagingToken = Events.onDamaging(function(event) damaging(system, event) end)
-        system.damagedToken = Events.onDamaged(function(event) damaged(system, event) end)
+        system.cancelDamaging = Events.onDamaging(function(event) damaging(system, event) end)
+        system.cancelDamaged = Events.onDamaged(function(event) damaged(system, event) end)
     end)
     if not ok then
         release(system)

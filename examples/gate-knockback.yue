@@ -54,7 +54,7 @@ knockbackGate = (owner) ->
       if walking
         unit\issuePointOrder "move", 600, 0
       else
-        unit\pause true
+        unit\setPaused true
       say number, "next:", text
       clock\after 1, -> run unit
       clock\after 2.8, -> unit\remove!
@@ -86,7 +86,7 @@ knockbackGate = (owner) ->
     bench = Scheduler.new!
     herd = for index = 0, 99
       unit = Unit.create owner, FOOTMAN, 1700 + (index % 10) * 40, 1300 + math.floor(index / 10) * 40, 0
-      unit\pause true
+      unit\setPaused true
       unit
     pushed = Knockbacks.new clock: bench
     for unit in *herd

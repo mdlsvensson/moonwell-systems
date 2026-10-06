@@ -22,7 +22,7 @@ releaseTwoGate = (owner) ->
   hostile = Player.fromIndex 12
   hero = Unit.create owner, $FourCC("Hpal"), -300, 0, 0
   bolted = Unit.create hostile, $FourCC("hfoo"), 0, 250, 270
-  bolted\pause true
+  bolted\setPaused true
   dummies = Dummies.new clock: clock
   lease = dummies\cast
     owner: owner, typeId: $FourCC("e000"), x: -300, y: 0, ability: $FourCC("AHtb"), order: "thunderbolt"
@@ -46,10 +46,10 @@ releaseTwoGate = (owner) ->
     interval: 1
     onApply: (buff) ->
       target = buff\getUnit!
-      target\setVertexColor 80, 80, 255, 255
+      target\setColor 80, 80, 255, 255
       target\setMoveSpeed baseSpeed * 0.5
       buff\own ->
-        target\setVertexColor 255, 255, 255, 255
+        target\setColor 255, 255, 255, 255
         target\setMoveSpeed baseSpeed
     onStacks: (buff, previous) -> print "Systems buff stacks", previous, "->", buff\getStacks!
     onTick: (buff) -> print "Systems buff tick: stacks", buff\getStacks!, "remaining", buff\getRemaining!

@@ -17,7 +17,7 @@ local Messages = require('wrappers.sync')
 ---@field package onError (fun(message: string): ...)?
 ---@field package requests MoonwellSystems.Ordered Open requests by number, in asking order.
 ---@field package nextRequest integer
----@field package listener MoonwellWrappers.SyncListener? Nil until start().
+---@field package unlisten MoonwellWrappers.Cancel? Removes the wrappers' listener; nil until start().
 ---@field package disposed boolean
 local Sync = {}
 Sync.__index = Sync
@@ -156,8 +156,8 @@ end
 function Sync:start()
     local system = Check.receiver(self, Sync, 'Sync', 'Sync.start')
     if system.disposed then error('[systems] Sync.start: the system is disposed', 2) end
-    if system.listener then return end
-    system.listener = Messages.on(system.prefix, function(sender, data) arrived(system, sender, data) end)
+    if system.unlisten then return end
+    system.unlisten = Messages.on(system.prefix, function(sender, data) arrived(system, sender, data) end)
 end
 
 ---Asks `player`'s machine for a text. Call it on every machine, in the same order, like any other game code.
@@ -168,7 +168,7 @@ end
 function Sync:ask(player, read, receive)
     local system = Check.receiver(self, Sync, 'Sync', 'Sync.ask')
     if system.disposed then error('[systems] Sync.ask: the system is disposed', 2) end
-    if not system.listener then error('[systems] Sync.ask: call start() first', 2) end
+    if not system.unlisten then error('[systems] Sync.ask: call start() first', 2) end
     if getmetatable(player) ~= Player then error('[systems] Sync.ask: expected Player', 2) end
     Callback.check(read, 'Sync.ask')
     Callback.check(receive, 'Sync.ask')
@@ -198,7 +198,7 @@ function Sync:dispose()
     local system = Check.receiver(self, Sync, 'Sync', 'Sync.dispose')
     if system.disposed then return end
     system.disposed = true
-    if system.listener then Messages.off(system.listener); system.listener = nil end
+    if system.unlisten then system.unlisten(); system.unlisten = nil end
     system.requests:each(function(_, request) finish(system, request, nil, 'disposed') end)
 end
 

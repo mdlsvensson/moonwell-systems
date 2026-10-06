@@ -10,8 +10,9 @@ maps.
 longer writes `dir = "src"`. Its code is that of `v0.5.0` (2026-10-01): `systems.codec`, `systems.sync` and
 `systems.savefile` join `systems.scheduler`, `systems.signal`, `systems.scope`, `systems.time`, `systems.buffs`,
 `systems.aura`, `systems.dummy`, `systems.damage`, `systems.geometry`, `systems.terrain`, `systems.missile` and
-`systems.knockback`. The port of `wc3-lib` is complete. It needs moonwell-wrappers `v0.7.0` or later and Moonwell 0.5.2
-or later. Multiplayer desync checks are deferred until before Moonwell 1.0. Its in-game gate passed on 3.0.0.24268.
+`systems.knockback`. The port of `wc3-lib` is complete. It needs moonwell-wrappers `v0.7.0` to `v0.9.1` and Moonwell
+0.5.2 or later; the unreleased 0.6 code needs moonwell-wrappers `v0.10.0` or later. Multiplayer desync checks are
+deferred until before Moonwell 1.0. Its in-game gate passed on 3.0.0.24268.
 
 ## Use it
 
@@ -286,7 +287,8 @@ damage\deal source: hero, target: enemy, amount: 50, metadata: "crit"
   by at most `maxAngle`, at the same speed
 - `Geometry.segmentSphere(fx, fy, fz, tx, ty, tz, cx, cy, cz, radius)` returns the fraction (0 to 1) of the segment
   at which it first touches the sphere, or nil
-- `Geometry.orientation(vx, vy, vz)` returns `yaw, pitch` for `effect:setOrientation(yaw, pitch, 0)`
+- `Geometry.orientation(vx, vy, vz)` returns `yaw, pitch` in radians; apply them with
+  `effect:setOrientation(math.deg(yaw), math.deg(pitch), 0)`, which takes degrees
 
 Pure functions on plain numbers, so nothing is allocated per call. Angles are radians. In Warcraft a positive pitch
 points an effect's nose down (measured on 3.0.0.24268), so `orientation` gives a negative pitch for a climbing

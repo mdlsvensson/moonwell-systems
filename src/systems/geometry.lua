@@ -66,8 +66,9 @@ function Geometry.segmentSphere(fx, fy, fz, tx, ty, tz, cx, cy, cz, radius)
     return Vector.segmentSphere(fx, fy, fz, tx, ty, tz, cx, cy, cz, radius)
 end
 
----The yaw and pitch that point an effect along a velocity, for `effect:setOrientation(yaw, pitch, 0)`. A climbing
----velocity gives a negative pitch: in Warcraft a positive pitch points the nose down. A zero velocity gives 0, 0.
+---The yaw and pitch, in radians, that point an effect along a velocity: apply them with
+---`effect:setOrientation(math.deg(yaw), math.deg(pitch), 0)`, which takes degrees. A climbing velocity gives a negative
+---pitch: in Warcraft a positive pitch points the nose down. A zero velocity gives 0, 0.
 ---@param vx number
 ---@param vy number
 ---@param vz number

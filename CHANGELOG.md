@@ -19,6 +19,10 @@ call of every constructor that took positional arguments, renames `Buff:remove`,
 - A buff definition is checked when first applied, not on every apply.
 - `Signal:emit` and the buff store's poll no longer allocate per listener or per unit, and `Sync:dispose` visits only
   the requests still open, not every one ever issued.
+- Needs moonwell-wrappers `v0.10.0` or later (0.5 ran on `v0.7.0` to `v0.9.1`). `systems.damage` and `systems.sync`
+  keep the cancel functions that the wrappers' `Damage.onDamaging`, `Damage.onDamaged` and `Sync.on` now return, and
+  a missile's effect is turned in degrees. `Geometry.orientation` still returns radians: a map that passes its result
+  to `effect:setOrientation` converts it with `math.deg`.
 
 ### Migrating from 0.5
 
@@ -31,6 +35,7 @@ call of every constructor that took positional arguments, renames `Buff:remove`,
 | `Dummies.new(clock, options)`, `Missiles.new(clock, options)`, `Knockbacks.new(clock, options)` | `X.new{clock = clock, ...}` |
 | `Sync.new(clock, options)`, `Savefile.new(clock, options)` | `X.new{clock = clock, ...}` |
 | `buff:remove(reason)` | `buff:dispose(reason)` |
+| `effect:setOrientation(yaw, pitch, 0)` with `Geometry.orientation`'s result | `effect:setOrientation(math.deg(yaw), math.deg(pitch), 0)` |
 
 ## 0.5.1 (2026-10-02)
 

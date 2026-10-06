@@ -11,7 +11,7 @@ Handwritten annotated Lua 5.3, test-first changes, and no Node.js or Deno in thi
 - The `moonwell` program, 0.8.0 or later, on the PATH (or `MOONWELL` naming the executable: a path, not a command
   line), and Pkl 0.32 on the PATH.
 - Sibling checkouts of Moonwell (`../moonwell`; or `MOONWELL_REPO`) and moonwell-wrappers (`../moonwell-wrappers`,
-  v0.8.1 or later, for its `moonwell-library.json`; or `MOONWELL_WRAPPERS`). Integration links its consumer map to the
+  v0.10.0 or later, for its cancel functions; or `MOONWELL_WRAPPERS`). Integration links its consumer map to the
   Moonwell checkout's Pkl schema, so the program and that checkout must have the same major and minor version.
 
 ## Checks

@@ -48,11 +48,11 @@ physicsGate = (owner) ->
   -- Paused units do not fight on their own, so the gate decides everything that happens.
   target = (x, y) ->
     unit = Unit.create hostile, FOOTMAN, x, y, 180
-    unit\pause true
+    unit\setPaused true
     unit
   ally = (x, y) ->
     unit = Unit.create owner, FOOTMAN, x, y, 0
-    unit\pause true
+    unit\setPaused true
     unit
   -- A hill for step 5: a permanent crater with a negative depth raises the ground.
   TerrainDeformCrater 250, -150, 200, -150, 1, true

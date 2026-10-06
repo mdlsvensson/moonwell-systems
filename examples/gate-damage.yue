@@ -22,7 +22,7 @@ damageGate = (owner) ->
   breaker = Unit.create hostile, $FourCC("hspt"), 0, -150, 180
   -- Paused units do not fight on their own, so every hit in the log is one the gate caused.
   for unit in *{hero, attacker, victim, breaker}
-    unit\pause true
+    unit\setPaused true
   victim\setMaxLife 2000
   victim\setLife 2000
   dummies = Dummies.new clock: clock
@@ -43,7 +43,7 @@ damageGate = (owner) ->
     print "Damage #{hit.metadata or 'native'}:", nameOf(hit.source), "via", nameOf(hit.dealer), "->",
       nameOf(hit.target), hit.initialAmount, ">", hit.beforeArmorAmount, ">", hit.armorAmount, ">", hit.amount,
       "attack", hit.isAttack
-    attacker\pause true if hit.isAttack
+    attacker\setPaused true if hit.isAttack
   damage\start!
   strike = (number, request) ->
     before = request.target\getLife!
@@ -61,11 +61,11 @@ damageGate = (owner) ->
   clock\after 6, ->
     strike 6, source: attacker, target: breaker, amount: 100, damageType: DAMAGE_TYPE_MAGIC, metadata: "immune"
   clock\after 7, ->
-    attacker\pause false
+    attacker\setPaused false
     print "Damage step 7 attack ordered", attacker\issueTargetOrder "attack", victim
   clock\after 9, ->
     damage\dispose!
-    attacker\pause true
+    attacker\setPaused true
     attacker\damageTarget victim, 10, false, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS
     dummies\dispose!
     clock\dispose!

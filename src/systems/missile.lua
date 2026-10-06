@@ -387,7 +387,8 @@ function Missiles:launch(request)
         effect:setPosition(x, y, z)
         if face and (vx ~= 0 or vy ~= 0 or vz ~= 0) then
             yaw, pitch = orientation(vx, vy, vz)
-            effect:setOrientation(yaw, pitch, 0)
+            -- The wrapper takes degrees; `show` calls the native, which takes these radians.
+            effect:setOrientation(math.deg(yaw), math.deg(pitch), 0)
         end
     end
     ---@type MoonwellSystems.Missile
