@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 (2026-10-09)
 
 A refactor for consistency (spec `2026-10-05-moonwell-systems-refactor-design` in the workspace). It changes the
 call of every constructor that took positional arguments, renames `Buff:remove`, takes the argument away from
@@ -36,6 +36,31 @@ call of every constructor that took positional arguments, renames `Buff:remove`,
 | `Sync.new(clock, options)`, `Savefile.new(clock, options)` | `X.new{clock = clock, ...}` |
 | `buff:remove(reason)` | `buff:dispose(reason)` |
 | `effect:setOrientation(yaw, pitch, 0)` with `Geometry.orientation`'s result | `effect:setOrientation(math.deg(yaw), math.deg(pitch), 0)` |
+
+### Release gate
+
+Automated checks passed 2026-10-09 on Windows, with Moonwell 0.12.0, YueScript 0.34.3 and moonwell-wrappers
+`v0.10.0`: 24 suites (220 tests); Lua 5.3.6 syntax (57 files); integration, whose consumer map names both libraries
+by `path`: normal and minified builds, LuaLS 3.19.1 fixtures (27 expected negative diagnostics), `src/systems`
+against Moonwell's native declarations, all 15 entry points, and the five gate examples with clean editor
+diagnostics.
+
+In-game gate, 2026-10-09, Warcraft III 3.0.0.24268, one machine, normal builds of all five examples. The examples
+were rewritten for it: every printed line goes to a file, and where a run has something to watch, the screen names
+the next step and Esc plays it.
+
+- Releases 1 and 2: every line as before. The reference timer read 0.5000038 to 2.000004 s for the four half-second
+  runs, the tick stayed at 128 after dispose, the Storm Bolt took 99.37888 life, the buff stacked, ticked and
+  expired with the speed restored, both prunes printed, and the aura applied and ended `source-lost`.
+- Damage: every line as in 0.3.0, value for value.
+- Physics: every flight as in 0.4.0, value for value; 100 missiles cost 1.541 ms per step (1.597 in 0.4.0).
+- Knockbacks: 300.0, blocked after 234.4, 400.0 through the tree, replaced then 100.0 north, the walker moved 133.7
+  and 135.3 and kept its order; 100 knockbacks cost 2.413 ms per step (2.528 in 0.4.0).
+- Persistence: every line as in 0.5.0; the largest save took 9 ms to write and 61 ms to read and send, and arrived
+  after 0.07 s.
+- No `[systems] … failed` line printed but the two intended ones.
+
+Two machines are not part of this gate: the online and desync checks are deferred until before Moonwell 1.0.
 
 ## 0.5.2 (2026-10-09)
 

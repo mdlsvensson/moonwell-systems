@@ -209,6 +209,30 @@ documentation; no file under `src/` changed since v0.5.0.
 v0.5.2: not re-run (2026-10-09). The release changes a tool and documentation for Moonwell 0.12; no file under `src/`
 changed since v0.5.1.
 
+v0.6.0: passed 2026-10-09, run by the maintainer on Warcraft III Reforged 3.0.0.24268 (the version of the game's
+executable), normal builds of all five examples made with Moonwell 0.12.0 and moonwell-wrappers `v0.10.0`, read from
+the examples' files. The examples were rewritten before the gate: every printed line goes to a file, and the steps
+with something to watch are played with Esc. The maintainer saw every played step as its line says.
+
+- Steps 1 to 6 as for v0.1.0: the reference timer read 0.5000038, 1.000004, 1.500004 and 2.000004 s; the failing task
+  printed once (`war3map.lua:3613`); the tick stayed at 128 after dispose; the local UTC time was correct.
+- Steps 7 to 12: the Storm Bolt hit with 99.37888 life lost, its 100 less two and a half seconds of regeneration
+  (125.3767 at v0.2.0, in the gate map of that time, whose object data is gone); the buff went
+  `1 -> 2`, ticked at 2.5, 1.5 and 0.5 s remaining and expired with the speed restored; `killed death` and
+  `removed removed`; the aura applied and ended `source-lost`; the passive buff ended `disposed`.
+- Steps 13 to 20 as for v0.3.0, value for value: 89.28571 with 89.28577 life lost; the crit 178.5714 > 50; the
+  cancelled hit; two Storm Bolt hits credited to the paladin (0.0, then 100.0); the chain and its follow-up 5.0 >
+  4.464285, with 93.75012 life lost; the Spell Breaker lost 0.0 and got no observer line; one attack line, 13.0 >
+  11.60714; nothing after `Damage gate done`.
+- Steps 21 to 29 as for v0.4.0, value for value (x -145.9 after 450.0; -100.0, 100.0 and 300.0; exactly 600; x -84.4;
+  x 131.2 and z 195.7; y 290.6; `isClear` true on the item and false at the tree); the missiles cost 1.541 ms per
+  step.
+- Steps 30 to 36: 300.0; blocked after 234.4; 400.0 through the tree; replaced, then 100.0 north; the walker moved
+  133.7 and 135.3 and kept its order; the knockbacks cost 2.413 ms per step.
+- Steps 37 to 46 as for v0.5.0: parity true for all three codes; the round trip; `missing`, `damaged` and `checksum`
+  twice; the largest save came back whole (saving 9 ms, reading and sending 61 ms, arrived after 0.07 s);
+  `coins 400`; `absent`, then the local clock; the tooltips unchanged; and the five files in `moonwell-gate\`.
+
 ## Publication and tag gate (maintainer)
 
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the

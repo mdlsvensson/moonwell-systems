@@ -6,14 +6,14 @@ pipeline, missiles, knockbacks and save files. Annotated Lua 5.3, built on
 [moonwell-wrappers](https://github.com/mdlsvensson/moonwell-wrappers), with editor completion for YueScript and Lua
 maps.
 
-**Status:** `v0.5.2` (2026-10-09): the instructions here follow Moonwell 0.12. Since `v0.5.1` the library names its
-own module folder (`moonwell-library.json`), so a map no longer writes `dir = "src"`. Its code is that of `v0.5.0`
-(2026-10-01): `systems.codec`, `systems.sync` and `systems.savefile` join `systems.scheduler`, `systems.signal`,
-`systems.scope`, `systems.time`, `systems.buffs`, `systems.aura`, `systems.dummy`, `systems.damage`,
-`systems.geometry`, `systems.terrain`, `systems.missile` and `systems.knockback`. The port of `wc3-lib` is complete.
-It needs moonwell-wrappers `v0.7.0` to `v0.9.2` and Moonwell 0.12 or later; the unreleased 0.6 code needs
-moonwell-wrappers `v0.10.0` or later. Multiplayer desync checks are deferred until before Moonwell 1.0. Its in-game
-gate passed on 3.0.0.24268.
+**Status:** `v0.6.0` (2026-10-09): a refactor for consistency. Every constructor takes one options table,
+`buff:remove` is `buff:dispose`, and options and requests refuse unknown keys, so a map written for v0.5 needs the
+changelog's migration table; every save code of v0.5 still decodes. The modules are those of v0.5:
+`systems.scheduler`, `systems.signal`, `systems.scope`, `systems.time`, `systems.buffs`, `systems.aura`,
+`systems.dummy`, `systems.damage`, `systems.geometry`, `systems.terrain`, `systems.missile`, `systems.knockback`,
+`systems.codec`, `systems.sync` and `systems.savefile`. The port of `wc3-lib` is complete. It needs moonwell-wrappers
+`v0.10.0` or later and Moonwell 0.12 or later. Multiplayer desync checks are deferred until before Moonwell 1.0. Its
+in-game gate passed on 3.0.0.24268.
 
 ## Use it
 
@@ -23,12 +23,12 @@ Moonwell libraries cannot declare dependencies, so list both libraries in the ma
 [[libraries]]
 name = "wrappers"
 github = "mdlsvensson/moonwell-wrappers"
-tag = "v0.8.1"
+tag = "v0.10.0"
 
 [[libraries]]
 name = "systems"
 github = "mdlsvensson/moonwell-systems"
-tag = "v0.5.2"
+tag = "v0.6.0"
 ```
 
 Commit the resulting `moonwell.lock`. To work on a local checkout, name each repository's folder in `config.toml` of
