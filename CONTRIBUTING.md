@@ -285,3 +285,9 @@ whose two entries are the README's, in `moonwell.toml`: check, normal and minifi
 `4d1d6e977ea3755cf6f85c95a65d985ca5b5c2db`, the 21 fetched systems files matched the tag's `src/` byte for byte,
 and the lock stayed unchanged after removing the map's `.moonwell/` and checking again. The README's example keeps
 wrappers `v0.8.1`, the tag the in-game gate ran with; the automated checks of this release ran with `v0.9.2`.
+
+v0.6.0: passed 2026-10-09 with Moonwell 0.12.0 and moonwell-wrappers `v0.10.0`, in a map made fresh with `init --link`
+whose two entries are the README's, in `moonwell.toml`: check, normal and minified builds of the five gate examples;
+`moonwell.lock` recorded systems commit `1695452f5ea41718e115cbb43727a2cec5e0768d` and wrappers commit
+`abd8badf39ad806234565db8fa40f87c3aaee199`, the 24 fetched systems files matched the tag's `src/` byte for byte,
+and the lock stayed unchanged after removing the map's `.moonwell/` and checking again.
