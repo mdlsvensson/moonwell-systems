@@ -1,11 +1,14 @@
 -- The moonwell-systems in-game gate. The maintainer builds a throwaway map from this file and runs it in game
 -- (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. It starts just after the map
--- loads.
+-- loads. Release 1's part runs by itself for five seconds; release 2's shows one thing at a time: the screen says
+-- what the next step will show, and Esc plays it. Every printed line is written to
+-- CustomMapData\moonwell-systems-gate.pld.
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
 import "wrappers.player" as Player
 import "wrappers.unit" as Unit
 import "wrappers.timer" as Timer
+import "wrappers.trigger" as Trigger
 import "systems.scheduler" as Scheduler
 import "systems.signal" as Signal
 import "systems.scope" as Scope
@@ -14,8 +17,67 @@ import "systems.buffs" as BuffStore
 import "systems.aura" as Aura
 import "systems.dummy" as Dummies
 
--- Release 2: dummies, buffs, pruning and an aura. It runs after release 1's part; CONTRIBUTING lists every message.
--- The dummy type e000 comes from the map's object data (README, "The dummy unit type").
+-- Every printed line, the library's own too, is kept, and `save` writes them all to
+-- Documents\Warcraft III\CustomMapData\moonwell-systems-gate.pld: a run is read from that file afterwards.
+lines = {}
+screenPrint = print
+_G.print = (...) ->
+  screenPrint ...
+  parts = [tostring(select(index, ...)) for index = 1, select("#", ...)]
+  lines[#lines + 1] = table.concat parts, " "
+save = ->
+  PreloadGenClear!
+  PreloadGenStart!
+  for line in *lines
+    -- A Preload line keeps 259 characters: longer lines continue on the next.
+    for at = 1, #line, 200
+      Preload (line\sub(at, at + 199)\gsub "\"", "'")
+  PreloadGenEnd "moonwell-systems-gate.pld"
+  PreloadGenClear!
+
+-- The one line that stays on screen: what the next step will show, or what is showing now.
+showPrompt = (text) ->
+  ClearTextMessages!
+  DisplayTimedTextToPlayer GetLocalPlayer!, 0, 0, 600, text
+
+-- One thing at a time. `play` adds a step: what it shows, how many seconds it takes, and the function that shows it.
+-- The screen names the next step, Esc plays it, and when its seconds are over the screen names the one after. After
+-- the last step `finish` runs.
+playByPlay = (owner, name) ->
+  plays = {}
+  play = (text, seconds, run) -> plays[#plays + 1] = {:text, :seconds, :run}
+  start = (finish) ->
+    index = 0
+    waiting = false
+    escape = Trigger.create!
+    escape\registerPlayerEvent owner, EVENT_PLAYER_END_CINEMATIC
+    announce = ->
+      save!
+      index += 1
+      current = plays[index]
+      if current
+        waiting = true
+        showPrompt "Step #{index} of #{#plays}. Press Esc, then watch: #{current.text}."
+      else
+        escape\destroy!
+        ClearTextMessages!
+        finish!
+    escape\addAction ->
+      if waiting
+        waiting = false
+        current = plays[index]
+        print "#{name} step #{index} of #{#plays}: #{current.text}"
+        showPrompt "Step #{index} of #{#plays}. Watch: #{current.text}."
+        current.run!
+        later = Timer.create!
+        later\start current.seconds, false, (self) ->
+          self\destroy!
+          announce!
+    announce!
+  play, start
+
+-- Release 2: dummies, buffs, pruning and an aura, one at a time. It runs after release 1's part; CONTRIBUTING lists
+-- every message. The dummy type e000 comes from the map's object data (README, "The dummy unit type").
 releaseTwoGate = (owner) ->
   clock = Scheduler.new!
   clock\start!
@@ -24,16 +86,6 @@ releaseTwoGate = (owner) ->
   bolted = Unit.create hostile, $FourCC("hfoo"), 0, 250, 270
   bolted\setPaused true
   dummies = Dummies.new clock: clock
-  lease = dummies\cast
-    owner: owner, typeId: $FourCC("e000"), x: -300, y: 0, ability: $FourCC("AHtb"), order: "thunderbolt"
-    target: bolted, duration: 2, source: hero
-  dummy = lease\getUnit!
-  print "Systems dummy cast accepted", lease\isOrderAccepted!, "isDummy", dummies\isDummy(dummy), "source is hero",
-    dummies\sourceOf(dummy) == hero, "count", dummies\getCount!
-  boltedLife = bolted\getLife!
-  clock\after 2.5, ->
-    print "Systems dummy gone: count", dummies\getCount!, "active", lease\isActive!, "life lost",
-      boltedLife - bolted\getLife!
   buffs = BuffStore.new clock: clock
   slowed = Unit.create owner, $FourCC("hfoo"), 200, -250, 90
   baseSpeed = slowed\getMoveSpeed!
@@ -55,8 +107,6 @@ releaseTwoGate = (owner) ->
     onTick: (buff) -> print "Systems buff tick: stacks", buff\getStacks!, "remaining", buff\getRemaining!
     onRemove: (buff, reason) ->
       print "Systems buff removed:", reason, "speed restored", buff\getUnit!\getMoveSpeed! == baseSpeed
-  clock\after 3, -> buffs\apply slowed, slow
-  clock\after 3.5, -> buffs\apply slowed, slow
   doomed = Unit.create hostile, $FourCC("hfoo"), 300, 350, 0
   vanished = Unit.create hostile, $FourCC("hfoo"), 400, 350, 0
   marked = (name) ->
@@ -65,12 +115,6 @@ releaseTwoGate = (owner) ->
     id: "gate-talent"
     kind: "passive"
     onRemove: (_, reason) -> print "Systems passive buff removed:", reason
-  clock\after 7, ->
-    buffs\apply doomed, marked "killed"
-    buffs\apply doomed, talent
-    buffs\apply vanished, marked "removed"
-    doomed\kill!
-    RemoveUnit vanished\getHandle!
   walker = Unit.create owner, $FourCC("hfoo"), 900, 0, 180
   devotion =
     id: "gate-aura"
@@ -82,15 +126,44 @@ releaseTwoGate = (owner) ->
     query: ->
       dx, dy = walker\getX! - hero\getX!, walker\getY! - hero\getY!
       if dx * dx + dy * dy <= 400 * 400 then {walker} else {}
-  clock\after 8, -> aura\start!
-  clock\after 9, -> walker\setPosition -250, 0
-  clock\after 11, -> walker\setPosition 900, 0
-  clock\after 12.5, ->
+  play, start = playByPlay owner, "Systems"
+
+  play "a Storm Bolt hits the footman above the middle; no caster shows at the paladin, where it starts", 3, ->
+    lease = dummies\cast
+      owner: owner, typeId: $FourCC("e000"), x: -300, y: 0, ability: $FourCC("AHtb"), order: "thunderbolt"
+      target: bolted, duration: 2, source: hero
+    dummy = lease\getUnit!
+    print "Systems dummy cast accepted", lease\isOrderAccepted!, "isDummy", dummies\isDummy(dummy), "source is hero",
+      dummies\sourceOf(dummy) == hero, "count", dummies\getCount!
+    boltedLife = bolted\getLife!
+    clock\after 2.5, ->
+      print "Systems dummy gone: count", dummies\getCount!, "active", lease\isActive!, "life lost",
+        boltedLife - bolted\getLife!
+
+  play "the footman below the middle turns blue for three and a half seconds, then gets its colour back", 4.5, ->
+    buffs\apply slowed, slow
+    clock\after 0.5, -> buffs\apply slowed, slow
+
+  play "of the two footmen at the upper right, the left one dies and the right one vanishes", 1.5, ->
+    buffs\apply doomed, marked "killed"
+    buffs\apply doomed, talent
+    buffs\apply vanished, marked "removed"
+    doomed\kill!
+    RemoveUnit vanished\getHandle!
+
+  play "the footman far to the right jumps next to the paladin, and two seconds later jumps back", 4.5, ->
+    aura\start!
+    clock\after 1, -> walker\setPosition -250, 0
+    clock\after 3, -> walker\setPosition 900, 0
+
+  start ->
     aura\dispose!
     buffs\dispose!
     dummies\dispose!
     clock\dispose!
     print "Systems release 2 done"
+    save!
+    showPrompt "The systems gate is done. Close the game."
   print "Systems release 2 started"
 
 systemsGate = (owner) ->

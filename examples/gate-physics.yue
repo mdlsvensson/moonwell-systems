@@ -1,12 +1,13 @@
 -- The moonwell-systems physics gate (release 4): missiles and terrain. The maintainer builds a throwaway map from this
--- file and runs it in game (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. It
--- starts just after the map loads, and also writes its lines to CustomMapData\moonwell-systems-physics.pld.
--- Knockbacks have their own gate, gate-knockback.yue.
+-- file and runs it in game (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. One
+-- flight at a time: the screen says what the next one will show, and Esc plays it. Every printed line is written to
+-- CustomMapData\moonwell-systems-physics.pld. Knockbacks have their own gate, gate-knockback.yue.
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
 import "wrappers.player" as Player
 import "wrappers.unit" as Unit
 import "wrappers.timer" as Timer
+import "wrappers.trigger" as Trigger
 import "wrappers.destructable" as Destructable
 import "wrappers.item" as Item
 import "systems.scheduler" as Scheduler
@@ -18,24 +19,72 @@ BOLT = "Abilities\\Weapons\\BallistaMissile\\BallistaMissile.mdl"
 FOOTMAN = $FourCC "hfoo"
 TREE = $FourCC "LTlt"
 
+-- Every printed line, the library's own too, is kept, and `save` writes them all to
+-- Documents\Warcraft III\CustomMapData\moonwell-systems-physics.pld: a run is read from that file afterwards.
 lines = {}
-say = (...) ->
-  parts = {"Physics"}
-  for index = 1, select "#", ...
-    parts[#parts + 1] = tostring (select index, ...)
-  line = table.concat parts, " "
-  print line
-  lines[#lines + 1] = line
+screenPrint = print
+_G.print = (...) ->
+  screenPrint ...
+  parts = [tostring(select(index, ...)) for index = 1, select("#", ...)]
+  lines[#lines + 1] = table.concat parts, " "
 save = ->
   PreloadGenClear!
   PreloadGenStart!
   for line in *lines
-    Preload (line\gsub "\"", "'")
+    -- A Preload line keeps 259 characters: longer lines continue on the next.
+    for at = 1, #line, 200
+      Preload (line\sub(at, at + 199)\gsub "\"", "'")
   PreloadGenEnd "moonwell-systems-physics.pld"
   PreloadGenClear!
+say = (...) ->
+  parts = {"Physics"}
+  for index = 1, select "#", ...
+    parts[#parts + 1] = tostring (select index, ...)
+  print table.concat parts, " "
 round = (value) ->
   text = string.format "%.1f", value
   text == "-0.0" and "0.0" or text
+
+-- The one line that stays on screen: what the next step will show, or what is showing now.
+showPrompt = (text) ->
+  ClearTextMessages!
+  DisplayTimedTextToPlayer GetLocalPlayer!, 0, 0, 600, text
+
+-- One thing at a time. `play` adds a step: what it shows, how many seconds it takes, and the function that shows it.
+-- The screen names the next step, Esc plays it, and when its seconds are over the screen names the one after. After
+-- the last step `finish` runs.
+playByPlay = (owner, name) ->
+  plays = {}
+  play = (text, seconds, run) -> plays[#plays + 1] = {:text, :seconds, :run}
+  start = (finish) ->
+    index = 0
+    waiting = false
+    escape = Trigger.create!
+    escape\registerPlayerEvent owner, EVENT_PLAYER_END_CINEMATIC
+    announce = ->
+      save!
+      index += 1
+      current = plays[index]
+      if current
+        waiting = true
+        showPrompt "Step #{index} of #{#plays}. Press Esc, then watch: #{current.text}."
+      else
+        escape\destroy!
+        ClearTextMessages!
+        finish!
+    escape\addAction ->
+      if waiting
+        waiting = false
+        current = plays[index]
+        print "#{name} step #{index} of #{#plays}: #{current.text}"
+        showPrompt "Step #{index} of #{#plays}. Watch: #{current.text}."
+        current.run!
+        later = Timer.create!
+        later\start current.seconds, false, (self) ->
+          self\destroy!
+          announce!
+    announce!
+  play, start
 
 physicsGate = (owner) ->
   clock = Scheduler.new!
@@ -62,16 +111,17 @@ physicsGate = (owner) ->
     target x, 450
   quarry = target 0, 100
   Destructable.create TREE, 512, -448, 270, 1, 0
+  play, start = playByPlay owner, "Physics"
 
   -- 1. A straight missile: it hits the hostile footman, and its bolt points along its travel.
-  clock\after 1, ->
+  play "top row: a bolt flies east from the left, pointing east, and hits the lone footman", 1.5, ->
     missiles\launch
       x: -600, y: 600, vx: 900, vy: 0, radius: 16, lifetime: 2, model: BOLT, filter: enemy
       onHit: (missile, unit) -> say "1 hit", unit\getName!, "at x", round (missile\getPosition!)
       onEnd: (missile, reason) -> say "1 end", reason, "travelled", round missile\getTravelled!
 
   -- 2. Piercing and the filter: it passes the allied footman, pierces two hostile ones and ends at the third.
-  clock\after 2.5, ->
+  play "second row: a bolt passes your own footman, goes through two hostile ones and ends at the third", 1.5, ->
     hits = {}
     missiles\launch
       x: -600, y: 450, vx: 900, vy: 0, radius: 16, lifetime: 2, maxHits: 3, model: BOLT, filter: enemy
@@ -79,13 +129,13 @@ physicsGate = (owner) ->
       onEnd: (_, reason) -> say "2 end", reason, "hit the footmen at x", table.concat hits, " "
 
   -- 3. Range: nothing is in its way, and it ends at exactly maxRange.
-  clock\after 4, ->
+  play "third row: a bolt flies east over empty ground and disappears in the air after a short way", 1.5, ->
     missiles\launch
       x: -600, y: 300, vx: 900, vy: 0, radius: 16, lifetime: 2, maxRange: 600, model: BOLT, filter: enemy
       onEnd: (missile, reason) -> say "3 end", reason, "travelled exactly 600", missile\getTravelled! == 600
 
   -- 4. An arc: gravity pulls it down; the bolt noses up, then down, and lands on the ground.
-  clock\after 5.5, ->
+  play "a bolt climbs nose up, turns over and comes down nose first onto the ground", 2, ->
     missiles\launch
       x: -600, y: 150, height: 20, vx: 500, vy: 0, vz: 500, az: -1000, radius: 16, lifetime: 5, model: BOLT
       filter: nobody
@@ -94,7 +144,7 @@ physicsGate = (owner) ->
         say "4 end", reason, "at x", round(x), "height above the ground", round(z - terrain\height(x, y))
 
   -- 5. The hill: a followGround missile rides over it; a straight one ends on its slope.
-  clock\after 7.5, ->
+  play "two bolts fly east at the small hill right of the middle: one ends on its slope, one rides over it", 3, ->
     peak = 0
     missiles\launch
       x: -600, y: -150, vx: 600, vy: 0, radius: 16, lifetime: 5, maxRange: 1200, followGround: true, model: BOLT
@@ -108,7 +158,7 @@ physicsGate = (owner) ->
       onEnd: (missile, reason) -> say "5 straight end", reason, "at x", round (missile\getPosition!)
 
   -- 6. Homing: the bolt starts north, away from the footman east of it, and steer bends it round in an arc.
-  clock\after 10, ->
+  play "a bolt starts north from the left, bends round to the east and comes down into the footman there", 5.5, ->
     north = 0
     missiles\launch
       x: -600, y: 0, vx: 0, vy: 600, radius: 16, lifetime: 5, model: BOLT
@@ -122,16 +172,15 @@ physicsGate = (owner) ->
       onHit: -> say "6 homing hit the footman"
       onEnd: (_, reason) -> say "6 end", reason, "after curving north to y", round north
 
-  -- 7. An item on the ground does not block isClear; a tree does, and the terrain check misses it.
-  clock\after 12, ->
+  start ->
+    -- 7. An item on the ground does not block isClear; a tree does, and the terrain check misses it.
     potion = Item.create $FourCC("phea"), -800, 0
     say "7 isClear on a lying item", terrain\isClear(-800, 0), "the item is still visible",
       IsItemVisible potion\getHandle!
     say "7 at the tree: isWalkable", terrain\isWalkable(512, -448), "isClear", terrain\isClear(512, -448)
     potion\remove!
 
-  -- 8. Speed: 100 missiles among 20 footmen, timed over 320 steps of a clock of their own.
-  clock\after 13, ->
+    -- 8. Speed: 100 missiles among 20 footmen, timed over 320 steps of a clock of their own.
     bench = Scheduler.new!
     crowd = for index = 0, 19
       target 1700 + (index % 5) * 80, 1700 + math.floor(index / 5) * 80
@@ -150,13 +199,12 @@ physicsGate = (owner) ->
     for unit in *crowd
       unit\remove!
     bench\dispose!
-
-  clock\after 15, ->
     missiles\dispose!
     terrain\dispose!
     clock\dispose!
     say "gate done"
     save!
+    showPrompt "The physics gate is done. Close the game."
   say "gate started"
 
 mw.on_main ->

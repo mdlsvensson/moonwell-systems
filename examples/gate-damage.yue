@@ -1,6 +1,8 @@
 -- The moonwell-systems damage gate (release 3). The maintainer builds a throwaway map from this file and runs it in
 -- game (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. It starts just after the map
--- loads. The dummy type e000 comes from the map's object data (README, "The dummy unit type").
+-- loads and runs by itself for nine seconds; nothing needs watching. Every printed line is written to
+-- CustomMapData\moonwell-systems-damage.pld. The dummy type e000 comes from the map's object data (README, "The dummy
+-- unit type").
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
 import "wrappers.player" as Player
@@ -9,6 +11,24 @@ import "wrappers.timer" as Timer
 import "systems.scheduler" as Scheduler
 import "systems.dummy" as Dummies
 import "systems.damage" as DamageSystem
+
+-- Every printed line, the library's own too, is kept, and `save` writes them all to
+-- Documents\Warcraft III\CustomMapData\moonwell-systems-damage.pld: a run is read from that file afterwards.
+lines = {}
+screenPrint = print
+_G.print = (...) ->
+  screenPrint ...
+  parts = [tostring(select(index, ...)) for index = 1, select("#", ...)]
+  lines[#lines + 1] = table.concat parts, " "
+save = ->
+  PreloadGenClear!
+  PreloadGenStart!
+  for line in *lines
+    -- A Preload line keeps 259 characters: longer lines continue on the next.
+    for at = 1, #line, 200
+      Preload (line\sub(at, at + 199)\gsub "\"", "'")
+  PreloadGenEnd "moonwell-systems-damage.pld"
+  PreloadGenClear!
 
 nameOf = (unit) -> if unit then unit\getName! else "nobody"
 
@@ -70,6 +90,13 @@ damageGate = (owner) ->
     dummies\dispose!
     clock\dispose!
     print "Damage gate done"
+    -- A line after "gate done" would be a hit the disposed system still reported: it is saved a second later.
+    later = Timer.create!
+    later\start 1, false, (self) ->
+      self\destroy!
+      save!
+      ClearTextMessages!
+      DisplayTimedTextToPlayer GetLocalPlayer!, 0, 0, 600, "The damage gate is done. Close the game."
   print "Damage gate started"
 
 mw.on_main ->

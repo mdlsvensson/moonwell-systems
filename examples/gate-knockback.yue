@@ -1,12 +1,13 @@
 -- The moonwell-systems knockback gate (release 4). The maintainer builds a throwaway map from this file and runs it in
 -- game (CONTRIBUTING, "In-game release gate"); CONTRIBUTING lists every expected message. One footman is pushed at a
--- time, at the centre of the screen, and each push is announced a second before it happens. It starts just after the
--- map loads, and also writes its lines to CustomMapData\moonwell-systems-knockback.pld.
+-- time, at the centre of the screen: the screen says what the next push will show, and Esc plays it. Every printed
+-- line is written to CustomMapData\moonwell-systems-knockback.pld.
 import "moonwell" as mw
 import "moonwell.macros" as {:$FourCC}
 import "wrappers.player" as Player
 import "wrappers.unit" as Unit
 import "wrappers.timer" as Timer
+import "wrappers.trigger" as Trigger
 import "wrappers.destructable" as Destructable
 import "systems.scheduler" as Scheduler
 import "systems.knockback" as Knockbacks
@@ -16,24 +17,72 @@ TREE = $FourCC "LTlt"
 MOVE = 851986
 START_X = -300
 
+-- Every printed line, the library's own too, is kept, and `save` writes them all to
+-- Documents\Warcraft III\CustomMapData\moonwell-systems-knockback.pld: a run is read from that file afterwards.
 lines = {}
-say = (...) ->
-  parts = {"Knockback"}
-  for index = 1, select "#", ...
-    parts[#parts + 1] = tostring (select index, ...)
-  line = table.concat parts, " "
-  print line
-  lines[#lines + 1] = line
+screenPrint = print
+_G.print = (...) ->
+  screenPrint ...
+  parts = [tostring(select(index, ...)) for index = 1, select("#", ...)]
+  lines[#lines + 1] = table.concat parts, " "
 save = ->
   PreloadGenClear!
   PreloadGenStart!
   for line in *lines
-    Preload (line\gsub "\"", "'")
+    -- A Preload line keeps 259 characters: longer lines continue on the next.
+    for at = 1, #line, 200
+      Preload (line\sub(at, at + 199)\gsub "\"", "'")
   PreloadGenEnd "moonwell-systems-knockback.pld"
   PreloadGenClear!
+say = (...) ->
+  parts = {"Knockback"}
+  for index = 1, select "#", ...
+    parts[#parts + 1] = tostring (select index, ...)
+  print table.concat parts, " "
 round = (value) ->
   text = string.format "%.1f", value
   text == "-0.0" and "0.0" or text
+
+-- The one line that stays on screen: what the next step will show, or what is showing now.
+showPrompt = (text) ->
+  ClearTextMessages!
+  DisplayTimedTextToPlayer GetLocalPlayer!, 0, 0, 600, text
+
+-- One thing at a time. `play` adds a step: what it shows, how many seconds it takes, and the function that shows it.
+-- The screen names the next step, Esc plays it, and when its seconds are over the screen names the one after. After
+-- the last step `finish` runs.
+playByPlay = (owner, name) ->
+  plays = {}
+  play = (text, seconds, run) -> plays[#plays + 1] = {:text, :seconds, :run}
+  start = (finish) ->
+    index = 0
+    waiting = false
+    escape = Trigger.create!
+    escape\registerPlayerEvent owner, EVENT_PLAYER_END_CINEMATIC
+    announce = ->
+      save!
+      index += 1
+      current = plays[index]
+      if current
+        waiting = true
+        showPrompt "Step #{index} of #{#plays}. Press Esc, then watch: #{current.text}."
+      else
+        escape\destroy!
+        ClearTextMessages!
+        finish!
+    escape\addAction ->
+      if waiting
+        waiting = false
+        current = plays[index]
+        print "#{name} step #{index} of #{#plays}: #{current.text}"
+        showPrompt "Step #{index} of #{#plays}. Watch: #{current.text}."
+        current.run!
+        later = Timer.create!
+        later\start current.seconds, false, (self) ->
+          self\destroy!
+          announce!
+    announce!
+  play, start
 
 knockbackGate = (owner) ->
   clock = Scheduler.new!
@@ -46,43 +95,46 @@ knockbackGate = (owner) ->
     request.onEnd = (_, reason) ->
       say number, label, reason, "moved", round(unit\getX! - startX), round(unit\getY! - startY)
     system\apply unit, request
-  -- One step: a fresh footman at the same spot, the announcement, the push a second later, and the footman is gone
-  -- before the next step. `walking` leaves the footman unpaused and walking east from the announcement on.
-  step = (at, number, text, walking, run) ->
-    clock\after at, ->
-      unit = Unit.create owner, FOOTMAN, START_X, 0, 0
-      if walking
-        unit\issuePointOrder "move", 600, 0
-      else
-        unit\setPaused true
-      say number, "next:", text
-      clock\after 1, -> run unit
-      clock\after 2.8, -> unit\remove!
+  -- One push: a fresh footman at the same spot, the push a second later, and the footman is gone before the next
+  -- step. `walking` leaves the footman unpaused and walking east from the start.
+  stage = (walking, run) ->
+    unit = Unit.create owner, FOOTMAN, START_X, 0, 0
+    if walking
+      unit\issuePointOrder "move", 600, 0
+    else
+      unit\setPaused true
+    clock\after 1, -> run unit
+    clock\after 2.8, -> unit\remove!
+  play, start = playByPlay owner, "Knockback"
+  local tree
 
-  step 1, 1, "the footman slides east and slows to a stop", false, (unit) ->
-    push knockbacks, 1, "slide", unit, angle: 0, distance: 300, duration: 0.8, falloff: "linear"
+  play "a footman appears left of the middle; a second later it slides east and slows to a stop", 3, ->
+    stage false, (unit) ->
+      push knockbacks, 1, "slide", unit, angle: 0, distance: 300, duration: 0.8, falloff: "linear"
 
   -- The tree stands for steps 2 and 3 only.
-  clock\after 3.9, ->
+  play "a tree stands east of the footman; the footman is pushed at it and stops in front of it", 3, ->
     tree = Destructable.create TREE, 0, 0, 270, 1, 0
-    clock\after 6, -> tree\remove!
+    stage false, (unit) ->
+      push knockbacks, 2, "into the tree", unit, angle: 0, distance: 400, duration: 0.8
 
-  step 4, 2, "a tree is in the way: the footman is pushed at it and stops in front of it", false, (unit) ->
-    push knockbacks, 2, "into the tree", unit, angle: 0, distance: 400, duration: 0.8
+  play "the same push with terrain pathing: the footman slides through the tree", 3, ->
+    stage false, (unit) ->
+      push throughTrees, 3, "through the tree", unit, angle: 0, distance: 400, duration: 0.8
+    clock\after 2.9, -> tree\remove!
 
-  step 7, 3, "with terrain pathing the same push slides the footman through the tree", false, (unit) ->
-    push throughTrees, 3, "through the tree", unit, angle: 0, distance: 400, duration: 0.8
+  play "a push east is replaced at once by a push north: the footman only moves north", 3, ->
+    stage false, (unit) ->
+      push knockbacks, 4, "first push", unit, angle: 0, distance: 300, duration: 1
+      push knockbacks, 4, "second push", unit, angle: math.pi / 2, distance: 100, duration: 0.5
 
-  step 10, 4, "a push east is replaced at once by a push north: the footman only moves north", false, (unit) ->
-    push knockbacks, 4, "first push", unit, angle: 0, distance: 300, duration: 1
-    push knockbacks, 4, "second push", unit, angle: math.pi / 2, distance: 100, duration: 0.5
+  play "the footman walks east; a push north moves it sideways, and it keeps walking east", 3, ->
+    stage true, (unit) ->
+      push knockbacks, 5, "walker", unit, angle: math.pi / 2, distance: 150, duration: 0.5
+      clock\after 0.6, -> say 5, "the walker keeps its move order", unit\getCurrentOrder! == MOVE
 
-  step 13, 5, "the footman walks east; a push north moves it sideways, and it keeps walking east", true, (unit) ->
-    push knockbacks, 5, "walker", unit, angle: math.pi / 2, distance: 150, duration: 0.5
-    clock\after 0.6, -> say 5, "the walker keeps its move order", unit\getCurrentOrder! == MOVE
-
-  -- 6. Speed: 100 knockbacks, timed over 320 steps of a clock of their own.
-  clock\after 16, ->
+  start ->
+    -- 6. Speed: 100 knockbacks, timed over 320 steps of a clock of their own.
     bench = Scheduler.new!
     herd = for index = 0, 99
       unit = Unit.create owner, FOOTMAN, 1700 + (index % 10) * 40, 1300 + math.floor(index / 10) * 40, 0
@@ -100,13 +152,12 @@ knockbackGate = (owner) ->
     for unit in *herd
       unit\remove!
     bench\dispose!
-
-  clock\after 17.5, ->
     knockbacks\dispose!
     throughTrees\dispose!
     clock\dispose!
     say "gate done"
     save!
+    showPrompt "The knockback gate is done. Close the game."
   say "gate started"
 
 mw.on_main ->

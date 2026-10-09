@@ -31,25 +31,31 @@ examples, each with clean editor diagnostics.
 
 ## In-game release gate (maintainer)
 
-The maintainer builds a throwaway map for each run, runs it in game on the current patch, and reads the printed lines
-against the expected messages below and the comments in the example. The workspace's release skill
+The maintainer builds a throwaway map for each run, runs it in game on the current patch, and the printed lines are
+read against the expected messages below and the comments in the example. The workspace's release skill
 (`.claude/skills/release/SKILL.md`, "Building a throwaway gate map") writes the map's files: a Moonwell project linked
 to the Moonwell checkout, whose `moonwell.toml` lists both libraries as local paths, whose object data has the
 README's dummy unit type, and whose `src/main.yue` is an unchanged copy of the example. The skill builds it with
 `moonwell build --entry src/main.yue` (with `--minify` for a minified run) and hands over the command that starts the
-game on `dist/bin/map.w3x`. A printed line shows on screen for a few seconds, so take a screenshot, or read the lines
-that the physics, knockback and save gates also write to a file.
+game on `dist/bin/map.w3x`.
 
-The five examples, and the steps each one covers:
+Every example writes each line it prints, the library's own among them, to a file in
+`Documents\Warcraft III\CustomMapData\`, so a run is read from the file afterwards and needs no screenshot. Nothing
+that must be watched is timed: where a run has something to see, one line on screen names the next step
+(`Step 2 of 6. Press Esc, then watch: …`), Esc plays it, and when it is over the screen names the one after. The file
+has a line for each step that was played; what the maintainer reports is the number of a step that did not look as
+its line says. Each run says on screen when it is done.
 
-- `examples/gate.yue`: releases 1 and 2, steps 1 to 12.
-- `examples/gate-damage.yue`: release 3, steps 13 to 20.
-- `examples/gate-physics.yue`: release 4, missiles and terrain, steps 21 to 29.
-- `examples/gate-knockback.yue`: release 4, knockbacks, steps 30 to 36.
-- `examples/gate-save.yue`: release 5, steps 37 to 46.
+The five examples, the steps each one covers, and its file:
 
-Run `examples/gate.yue` first. It starts just after the map loads and takes about 18 seconds. Expected messages,
-release 1 first:
+- `examples/gate.yue`: releases 1 and 2, steps 1 to 12, `moonwell-systems-gate.pld`.
+- `examples/gate-damage.yue`: release 3, steps 13 to 20, `moonwell-systems-damage.pld`.
+- `examples/gate-physics.yue`: release 4, missiles and terrain, steps 21 to 29, `moonwell-systems-physics.pld`.
+- `examples/gate-knockback.yue`: release 4, knockbacks, steps 30 to 36, `moonwell-systems-knockback.pld`.
+- `examples/gate-save.yue`: release 5, steps 37 to 46, `moonwell-systems-save.pld`.
+
+Run `examples/gate.yue` first. It starts just after the map loads, and its first part, release 1, runs by itself for
+five seconds. Expected messages:
 
 1. `Systems signal order: low:7 five:7` after one `[systems] Signal listener failed: …intentional signal probe`;
    `Systems local UTC <seconds> <date> weekday <d>` (record it; the date is today's UTC); `Systems duration 3725 s
@@ -62,26 +68,27 @@ release 1 first:
    true`, and the footman at the centre disappears.
 6. At 5 s: `Systems gate done: tick at dispose <t> tick now <t> failures 1`, with the two ticks equal.
 
-Release 2 (v0.2.0) starts right after step 6; its times count from `Systems release 2 started`. A paladin stands on
-the left, with footmen above, below and to the upper right, and one far to the right:
+Release 2 (v0.2.0) starts right after step 6 with `Systems release 2 started`, and has four steps on screen, each
+played with Esc. A paladin stands on the left, with footmen above the middle, below it and to the upper right, and one
+far to the right:
 
-7. `Systems dummy cast accepted true isDummy true source is hero true count 1`, then `Systems release 2 started`. The
-   footman above the paladin is hit by a Storm Bolt (stunned and damaged). No dummy model is visible where the bolt
-   starts.
-8. At 2.5 s: `Systems dummy gone: count 0 active false life lost <n>`, with n above 0 (record it).
-9. From 3 s the footman below turns blue and is slowed; at 3.5 s `Systems buff stacks 1 -> 2`; then
-   `Systems buff tick: stacks 2 remaining <s>` once a second; at 6.5 s
+7. Screen step 1: `Systems dummy cast accepted true isDummy true source is hero true count 1`. The footman above the
+   middle is hit by a Storm Bolt (stunned and damaged). No dummy model is visible where the bolt starts.
+8. Two and a half seconds into it: `Systems dummy gone: count 0 active false life lost <n>`, with n above 0 (record
+   it).
+9. Screen step 2: the footman below turns blue and is slowed; half a second in `Systems buff stacks 1 -> 2`; then
+   `Systems buff tick: stacks 2 remaining <s>` once a second; after three and a half seconds
    `Systems buff removed: expired speed restored true`, and the footman's colour returns.
-10. At 7 s, within a quarter second: `Systems buff pruned: killed death` (that footman dies) and
+10. Screen step 3, within a quarter second: `Systems buff pruned: killed death` (that footman dies) and
     `Systems buff pruned: removed removed` (that footman vanishes). No `Systems passive buff removed` line yet.
-11. At 9 s the far footman jumps next to the paladin and `Systems aura applied to walker true` prints within half a
-    second; at 11 s it jumps back and `Systems aura removed: source-lost` prints.
-12. At 12.5 s: `Systems passive buff removed: disposed`, then `Systems release 2 done`. No `[systems] … failed` line
-    prints in release 2.
+11. Screen step 4: after a second the far footman jumps next to the paladin and `Systems aura applied to walker true`
+    prints within half a second; two seconds later it jumps back and `Systems aura removed: source-lost` prints.
+12. When step 4 is over: `Systems passive buff removed: disposed`, then `Systems release 2 done`. No
+    `[systems] … failed` line prints in release 2.
 
-Release 3 (v0.3.0) has its own run, `examples/gate-damage.yue`, about 10 seconds. A paladin stands on the left;
-above the centre your footman faces a hostile footman; a hostile Spell Breaker stands below. All four are paused.
-`Damage gate started` prints first. A hit prints as
+Release 3 (v0.3.0) has its own run, `examples/gate-damage.yue`. It runs by itself for about 10 seconds and nothing
+needs watching. A paladin stands on the left; above the centre your footman faces a hostile footman; a hostile Spell
+Breaker stands below. All four are paused. `Damage gate started` prints first. A hit prints as
 `Damage <metadata>: <source> via <dealer> -> <target> <initial> > <before armor> > <after armor> > <final> attack <b>`.
 
 13. At 1 s: `Damage baseline: Footman via Footman -> Footman 100.0 > 100.0 > <X> > <X> attack false`, then
@@ -98,52 +105,52 @@ above the centre your footman faces a hostile footman; a hostile Spell Breaker s
     `Damage immune: …` hit line: a spell-immune unit gets no DAMAGED event for magic damage.
 19. At 7 s: `Damage step 7 attack ordered true`; your footman attacks, and one
     `Damage native: Footman via Footman -> Footman … attack true` line prints.
-20. At 9 s: `Damage gate done`, and no line after it. No `[systems] … failed` line prints in the run.
+20. At 9 s: `Damage gate done`, and no line after it (the file is written a second later). No `[systems] … failed`
+    line prints in the run.
 
-Release 4 (v0.4.0) has two runs of its own. Both also write their lines to
-`Documents\Warcraft III\CustomMapData\` (`moonwell-systems-physics.pld` and `moonwell-systems-knockback.pld`).
+Release 4 (v0.4.0) has two runs of its own.
 
-`examples/gate-physics.yue` (missiles and terrain, about 16 seconds, with the camera zoomed out): hostile
-footmen stand in the upper rows, and a small hill rises right of the centre. `Physics gate started` prints first.
+`examples/gate-physics.yue` (missiles and terrain, with the camera zoomed out): hostile footmen stand in the upper
+rows, and a small hill rises right of the centre. `Physics gate started` prints first. Six flights, each a step on
+screen played with Esc:
 
-21. At 1 s a bolt flies east along the top row, pointing east, and hits the hostile footman:
+21. Screen step 1: a bolt flies east along the top row, pointing east, and hits the hostile footman:
     `Physics 1 hit Footman at x <about -146>`, then `Physics 1 end hit-limit travelled <about 450>`.
-22. At 2.5 s a bolt passes your footman, pierces two hostile ones and ends at the third:
+22. Screen step 2: a bolt passes your footman, pierces two hostile ones and ends at the third:
     `Physics 2 end hit-limit hit the footmen at x -100.0 100.0 300.0`.
-23. At 4 s: `Physics 3 end range travelled exactly 600 true`.
-24. At 5.5 s a bolt climbs nose up, turns over and comes down nose first:
+23. Screen step 3: `Physics 3 end range travelled exactly 600 true`.
+24. Screen step 4: a bolt climbs nose up, turns over and comes down nose first:
     `Physics 4 end ground at x <about -84> height above the ground 0.0`.
-25. At 7.5 s two bolts fly east at the hill. One ends on its slope:
+25. Screen step 5: two bolts fly east at the hill. One ends on its slope:
     `Physics 5 straight end ground at x <about 131>`. The other rides over it:
     `Physics 5 followGround end range highest z <about 196>`.
-26. At 10 s a bolt starts north, bends round to the east and comes down into the footman east of its start:
+26. Screen step 6: a bolt starts north, bends round to the east and comes down into the footman east of its start:
     `Physics 6 homing hit the footman`, then `Physics 6 end hit-limit after curving north to y <about 290>`.
-27. At 12 s: `Physics 7 isClear on a lying item true the item is still visible true` and
+27. When step 6 is over, by itself: `Physics 7 isClear on a lying item true the item is still visible true` and
     `Physics 7 at the tree: isWalkable true isClear false`.
-28. At 13 s the game freezes briefly, then `Physics 8 missiles: <ms> ms per step; in flight 100`. It must be under
+28. Then the game freezes briefly, and `Physics 8 missiles: <ms> ms per step; in flight 100` prints. It must be under
     3; record it.
-29. At 15 s: `Physics gate done`. No `[systems] … failed` line prints in the run.
+29. `Physics gate done`. No `[systems] … failed` line prints in the run.
 
-`examples/gate-knockback.yue` (about 18 seconds): one footman at a time stands left of the centre, and each
-step prints `Knockback <n> next: …` a second before its push. `Knockback gate started` prints first.
+`examples/gate-knockback.yue`: one footman at a time appears left of the centre and is pushed a second later.
+`Knockback gate started` prints first. Five pushes, each a step on screen played with Esc:
 
-30. At 2 s the footman slides east and slows to a stop: `Knockback 1 slide completed moved 300.0 0.0`.
-31. At 5 s, with a tree east of it, the footman is pushed at the tree and stops in front of it:
+30. Screen step 1: the footman slides east and slows to a stop: `Knockback 1 slide completed moved 300.0 0.0`.
+31. Screen step 2: with a tree east of it, the footman is pushed at the tree and stops in front of it:
     `Knockback 2 into the tree blocked moved <about 234> 0.0`.
-32. At 8 s the same push under terrain pathing slides the footman through the tree:
+32. Screen step 3: the same push under terrain pathing slides the footman through the tree:
     `Knockback 3 through the tree completed moved 400.0 0.0`.
-33. At 11 s the footman moves north only: `Knockback 4 first push replaced moved 0.0 0.0`, then
+33. Screen step 4: the footman moves north only: `Knockback 4 first push replaced moved 0.0 0.0`, then
     `Knockback 4 second push completed moved 0.0 100.0`.
-34. At 14 s the walking footman is pushed north and keeps walking east:
+34. Screen step 5: the walking footman is pushed north and keeps walking east:
     `Knockback 5 walker completed moved <x> <y>` with both above 0, then
     `Knockback 5 the walker keeps its move order true`.
-35. At 16 s the game freezes briefly, then `Knockback 6 knockbacks: <ms> ms per step; active 100`. It must be
-    under 3; record it.
-36. At 17.5 s: `Knockback gate done`. No `[systems] … failed` line prints in the run.
+35. When step 5 is over, by itself, the game freezes briefly, and
+    `Knockback 6 knockbacks: <ms> ms per step; active 100` prints. It must be under 3; record it.
+36. `Knockback gate done`. No `[systems] … failed` line prints in the run.
 
-Release 5 (v0.5.0) has its own run, `examples/gate-save.yue`, about 9 seconds. Nothing needs watching. Its lines
-also go to `Documents\Warcraft III\CustomMapData\moonwell-systems-save.pld`, and its save files to
-`CustomMapData\moonwell-gate\`. `Save gate started as <your name>` prints first.
+Release 5 (v0.5.0) has its own run, `examples/gate-save.yue`, about 9 seconds. Nothing needs watching. Its save
+files go to `CustomMapData\moonwell-gate\`. `Save gate started as <your name>` prints first.
 
 37. At once: `Save 1 parity: hero true edges true empty true` (the game's 32-bit integers give the codes the test
     suite expects) and `Save 1 the edges decode: integer`.
