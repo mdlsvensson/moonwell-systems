@@ -183,6 +183,9 @@ round trip gave `gold 500 hero Hpal hardMode true items 1227894832,1227894833,21
 v0.5.1: not re-run (maintainer's decision, 2026-10-02). The release adds `moonwell-library.json` and changes a tool and
 documentation; no file under `src/` changed since v0.5.0.
 
+v0.5.2: not re-run (2026-10-09). The release changes a tool and documentation for Moonwell 0.12; no file under `src/`
+changed since v0.5.1.
+
 ## Publication and tag gate (maintainer)
 
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the
