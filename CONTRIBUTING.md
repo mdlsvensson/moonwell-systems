@@ -8,7 +8,7 @@ Handwritten annotated Lua 5.3, test-first changes, and no Node.js or Deno in thi
 - YueScript 0.34.3 (`yue`, installed by Moonwell setup; or `MOONWELL_YUE`). Its `yue -e` runs the Lua tools.
 - LuaLS 3.19.1 (`MOONWELL_LUALS`, for example the Lua extension's `server/bin/lua-language-server.exe`).
 - Lua 5.3.6 `luac` (`MOONWELL_LUAC`); the wrappers' CONTRIBUTING shows how to build `luac53.exe` on Windows.
-- The `moonwell` program, 0.8.0 or later, on the PATH (or `MOONWELL` naming the executable: a path, not a command
+- The `moonwell` program, 0.12.0 or later, on the PATH (or `MOONWELL` naming the executable: a path, not a command
   line), and Pkl 0.32 on the PATH.
 - Sibling checkouts of Moonwell (`../moonwell`; or `MOONWELL_REPO`) and moonwell-wrappers (`../moonwell-wrappers`,
   v0.10.0 or later, for its cancel functions; or `MOONWELL_WRAPPERS`). Integration links its consumer map to the
@@ -34,7 +34,7 @@ examples, each with clean editor diagnostics.
 The maintainer builds a throwaway map for each run, runs it in game on the current patch, and reads the printed lines
 against the expected messages below and the comments in the example. The workspace's release skill
 (`.claude/skills/release/SKILL.md`, "Building a throwaway gate map") writes the map's files: a Moonwell project linked
-to the Moonwell checkout, whose `moonwell.local.pkl` lists both libraries as local paths, whose object data has the
+to the Moonwell checkout, whose `moonwell.toml` lists both libraries as local paths, whose object data has the
 README's dummy unit type, and whose `src/main.yue` is an unchanged copy of the example. The skill builds it with
 `moonwell build --entry src/main.yue` (with `--minify` for a minified run) and hands over the command that starts the
 game on `dist/bin/map.w3x`. A printed line shows on screen for a few seconds, so take a screenshot, or read the lines
@@ -199,6 +199,9 @@ round trip gave `gold 500 hero Hpal hardMode true items 1227894832,1227894833,21
 v0.5.1: not re-run (maintainer's decision, 2026-10-02). The release adds `moonwell-library.json` and changes a tool and
 documentation; no file under `src/` changed since v0.5.0.
 
+v0.5.2: not re-run (2026-10-09). The release changes a tool and documentation for Moonwell 0.12; no file under `src/`
+changed since v0.5.1.
+
 ## Publication and tag gate (maintainer)
 
 After the checks and the in-game gate pass: change the Unreleased changelog heading to the version and date, record the
@@ -244,3 +247,10 @@ whose two entries have no `dir` (the README configuration): check, normal and mi
 examples; `moonwell.lock` recorded systems commit `8792bb3811dd5dcac03c147b3dffdd1bca0d9e78` and wrappers commit
 `4d1d6e977ea3755cf6f85c95a65d985ca5b5c2db`, each with `"dir": ""`, the 21 fetched systems files matched the tag's
 `src/` byte for byte, and the lock stayed unchanged after removing the map's `.moonwell/` and checking again.
+
+v0.5.2: passed 2026-10-09 with Moonwell 0.12.0 and moonwell-wrappers `v0.8.1`, in a map made fresh with `init --link`
+whose two entries are the README's, in `moonwell.toml`: check, normal and minified builds of the five gate examples;
+`moonwell.lock` recorded systems commit `63792f6d2e78ab2761f69f384497ab994ac945e8` and wrappers commit
+`4d1d6e977ea3755cf6f85c95a65d985ca5b5c2db`, the 21 fetched systems files matched the tag's `src/` byte for byte,
+and the lock stayed unchanged after removing the map's `.moonwell/` and checking again. The README's example keeps
+wrappers `v0.8.1`, the tag the in-game gate ran with; the automated checks of this release ran with `v0.9.2`.

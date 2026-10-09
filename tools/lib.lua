@@ -20,6 +20,13 @@ function Lib.slash(path) return (path:gsub('\\', '/')) end
 function Lib.run(command, cwd)
     local line = command .. ' 2>&1'
     if cwd then line = (Lib.windows and 'cd /d ' or 'cd ') .. Lib.quote(Lib.native(cwd)) .. ' && ' .. line end
+    if Lib.moonwellHome then
+        if Lib.windows then
+            line = 'set "MOONWELL_HOME=' .. Lib.native(Lib.moonwellHome) .. '" && ' .. line
+        else
+            line = 'MOONWELL_HOME=' .. Lib.quote(Lib.moonwellHome) .. ' && export MOONWELL_HOME && ' .. line
+        end
+    end
     -- cmd.exe strips the outer quotes of a line that starts with a quote; wrap it once more.
     if Lib.windows then line = '"' .. line .. '"' end
     local pipe = assert(io.popen(line, 'r'))

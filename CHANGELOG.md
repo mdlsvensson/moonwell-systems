@@ -37,6 +37,22 @@ call of every constructor that took positional arguments, renames `Buff:remove`,
 | `buff:remove(reason)` | `buff:dispose(reason)` |
 | `effect:setOrientation(yaw, pitch, 0)` with `Geometry.orientation`'s result | `effect:setOrientation(math.deg(yaw), math.deg(pitch), 0)` |
 
+## 0.5.2 (2026-10-09)
+
+- The README's instructions and `tools/integration.lua` follow Moonwell 0.12, which they now need: a map lists both
+  libraries in its `moonwell.toml`, and local checkouts are named in `config.toml` of your Moonwell folder.
+
+No library code changed: `src/` is that of 0.5.1.
+
+### Release gate
+
+Automated checks passed 2026-10-09 on Windows, with Moonwell 0.12.0, YueScript 0.34.3 and moonwell-wrappers
+`v0.9.2`: 21 suites; Lua 5.3.6 syntax (51 files); integration, whose consumer map names both libraries by `path`:
+normal and minified builds, LuaLS 3.19.1 fixtures (26 expected negative diagnostics), `src/systems` against
+Moonwell's native declarations, all 15 entry points, and the five gate examples with clean editor diagnostics.
+
+The in-game gate was not re-run: no file under `src/` changed.
+
 ## 0.5.1 (2026-10-02)
 
 - New `moonwell-library.json` at the library's root, naming `src` as its module folder. A map on Moonwell 0.6.0 or

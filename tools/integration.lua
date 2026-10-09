@@ -18,21 +18,18 @@ local luals = os.getenv('MOONWELL_LUALS') or 'lua-language-server'
 local work = root .. '/.test-work/integration-' .. os.time()
 local consumer = work .. '/consumer'
 Lib.mkdir(work)
+Lib.moonwellHome = work .. '/home'
 print('Consumer: ' .. consumer)
 local function moonwell(args) return Lib.must(cli .. ' ' .. args, consumer) end
 
 -- `init --link` finds the checkout by walking up from its working directory, so it runs there.
 Lib.must(cli .. ' init --link ' .. Lib.quote(Lib.native(consumer)), repo)
-Lib.write(consumer .. '/moonwell.local.pkl', table.concat({
-    'amends "moonwell.pkl"',
-    -- No `dir`: each library's moonwell-library.json names it.
-    'libraries {',
-    '  ["wrappers"] { path = "' .. wrappers .. '" }',
-    '  ["systems"] { path = "' .. root .. '" }',
-    '}',
-    os.getenv('MOONWELL_YUE') and ('yue { path = "' .. absolute(yue) .. '" }') or '',
-    '',
-}, '\n'))
+Lib.write(consumer .. '/moonwell.toml', Lib.read(consumer .. '/moonwell.toml')
+    .. "\n[[libraries]]\nname = \"wrappers\"\npath = '" .. wrappers .. "'\n"
+    .. "\n[[libraries]]\nname = \"systems\"\npath = '" .. root .. "'\n")
+if os.getenv('MOONWELL_YUE') then
+    Lib.write(Lib.moonwellHome .. '/config.toml', "[yue]\npath = '" .. absolute(yue) .. "'\n")
+end
 
 local function compileEditor()
     Lib.must(Lib.quote(yue) .. ' -l -c --target=5.3 --path ' .. Lib.quote(consumer .. '/.moonwell/yue/?.lua')
