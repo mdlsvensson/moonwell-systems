@@ -231,3 +231,10 @@ whose two entries have no `dir` (the README configuration): check, normal and mi
 examples; `moonwell.lock` recorded systems commit `8792bb3811dd5dcac03c147b3dffdd1bca0d9e78` and wrappers commit
 `4d1d6e977ea3755cf6f85c95a65d985ca5b5c2db`, each with `"dir": ""`, the 21 fetched systems files matched the tag's
 `src/` byte for byte, and the lock stayed unchanged after removing the map's `.moonwell/` and checking again.
+
+v0.5.2: passed 2026-10-09 with Moonwell 0.12.0 and moonwell-wrappers `v0.8.1`, in a map made fresh with `init --link`
+whose two entries are the README's, in `moonwell.toml`: check, normal and minified builds of the five gate examples;
+`moonwell.lock` recorded systems commit `63792f6d2e78ab2761f69f384497ab994ac945e8` and wrappers commit
+`4d1d6e977ea3755cf6f85c95a65d985ca5b5c2db`, the 21 fetched systems files matched the tag's `src/` byte for byte,
+and the lock stayed unchanged after removing the map's `.moonwell/` and checking again. The README's example keeps
+wrappers `v0.8.1`, the tag the in-game gate ran with; the automated checks of this release ran with `v0.9.2`.
