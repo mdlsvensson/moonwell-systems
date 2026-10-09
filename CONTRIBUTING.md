@@ -8,7 +8,7 @@ Handwritten annotated Lua 5.3, test-first changes, and no Node.js or Deno in thi
 - YueScript 0.34.3 (`yue`, installed by Moonwell setup; or `MOONWELL_YUE`). Its `yue -e` runs the Lua tools.
 - LuaLS 3.19.1 (`MOONWELL_LUALS`, for example the Lua extension's `server/bin/lua-language-server.exe`).
 - Lua 5.3.6 `luac` (`MOONWELL_LUAC`); the wrappers' CONTRIBUTING shows how to build `luac53.exe` on Windows.
-- The `moonwell` program, 0.8.0 or later, on the PATH (or `MOONWELL` naming the executable: a path, not a command
+- The `moonwell` program, 0.12.0 or later, on the PATH (or `MOONWELL` naming the executable: a path, not a command
   line), and Pkl 0.32 on the PATH.
 - Sibling checkouts of Moonwell (`../moonwell`; or `MOONWELL_REPO`) and moonwell-wrappers (`../moonwell-wrappers`,
   v0.8.1 or later, for its `moonwell-library.json`; or `MOONWELL_WRAPPERS`). Integration links its consumer map to the
@@ -30,7 +30,7 @@ Moonwell's native declarations, checks that each entry point bundles only what i
 
 ## In-game release gate (maintainer)
 
-In `../wrappers-gate` (whose `moonwell.local.pkl` lists both libraries as local paths, and whose `objects/units.pkl`
+In `../wrappers-gate` (with both libraries named as local folders in your `config.toml`, and whose `objects/units.pkl`
 has the README's dummy unit type), run `yue -e gate.lua systems`. The gate starts just after the map loads and takes
 about 18 seconds. Expected messages (F12 log), release 1 first:
 

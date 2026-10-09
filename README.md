@@ -15,18 +15,23 @@ or later. Multiplayer desync checks are deferred until before Moonwell 1.0. Its 
 
 ## Use it
 
-Moonwell libraries cannot declare dependencies, so list both libraries in the map's committed `moonwell.pkl`:
+Moonwell libraries cannot declare dependencies, so list both libraries in the map's committed `moonwell.toml`:
 
-```pkl
-libraries {
-  ["wrappers"] { github = "mdlsvensson/moonwell-wrappers"; tag = "v0.8.1" }
-  ["systems"] { github = "mdlsvensson/moonwell-systems"; tag = "v0.5.1" }
-}
+```toml
+[[libraries]]
+name = "wrappers"
+github = "mdlsvensson/moonwell-wrappers"
+tag = "v0.8.1"
+
+[[libraries]]
+name = "systems"
+github = "mdlsvensson/moonwell-systems"
+tag = "v0.5.1"
 ```
 
-Commit the resulting `moonwell.lock`. To work on a local checkout, override the entries in `moonwell.local.pkl` with
-`path = "../moonwell-systems"` (and `path = "../moonwell-wrappers"`). Modules are named `systems.<name>`, for example
-`import "systems.scheduler" as Scheduler`.
+Commit the resulting `moonwell.lock`. To work on a local checkout, name each repository's folder in `config.toml` of
+your Moonwell folder (a `[[libraries]]` entry with `github` and the folder's absolute `path`). Modules are named
+`systems.<name>`, for example `import "systems.scheduler" as Scheduler`.
 
 Each library's `moonwell-library.json` tells Moonwell 0.6.0 or later that its module names start at `src/`. With
 Moonwell 0.5, or a tag before wrappers `v0.8.1` or systems `v0.5.1`, add `dir = "src"` to that entry. An entry that
