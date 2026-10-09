@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- The README's instructions and `tools/integration.lua` follow Moonwell 0.12, which they now need: a map lists both
+  libraries in its `moonwell.toml`, and local checkouts are named in `config.toml` of your Moonwell folder.
+
+No library code changed: `src/` is that of 0.5.1.
+
 ## 0.5.1 (2026-10-02)
 
 - New `moonwell-library.json` at the library's root, naming `src` as its module folder. A map on Moonwell 0.6.0 or
