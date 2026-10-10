@@ -32,12 +32,11 @@ examples, each with clean editor diagnostics.
 ## In-game release gate (maintainer)
 
 The maintainer builds a throwaway map for each run, runs it in game on the current patch, and the printed lines are
-read against the expected messages below and the comments in the example. The workspace's release skill
-(`.claude/skills/release/SKILL.md`, "Building a throwaway gate map") writes the map's files: a Moonwell project linked
-to the Moonwell checkout, whose `moonwell.toml` lists both libraries as local paths, whose object data has the
-README's dummy unit type, and whose `src/main.yue` is an unchanged copy of the example. The skill builds it with
-`moonwell build --entry src/main.yue` (with `--minify` for a minified run) and hands over the command that starts the
-game on `dist/bin/map.w3x`.
+read against the expected messages below and the comments in the example. The map is a Moonwell project linked to the
+Moonwell checkout, whose `moonwell.toml` lists both libraries as local paths, whose object data has the README's
+dummy unit type, and whose `src/main.yue` is an unchanged copy of the example. It is built with
+`moonwell build --entry src/main.yue` (with `--minify` for a minified run), and the game is started on
+`dist/bin/map.w3x`.
 
 Every example writes each line it prints, the library's own among them, to a file in
 `Documents\Warcraft III\CustomMapData\`, so a run is read from the file afterwards and needs no screenshot. Nothing
